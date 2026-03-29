@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
 const plans = [
   {
@@ -29,7 +31,16 @@ const plans = [
   },
 ];
 
-const Pricing = () => (
+const Pricing = () => {
+  const { addItem, items } = useCart();
+
+  const handleBuy = (plan: typeof plans[0]) => {
+    const price = parseInt(plan.price.replace(/[$,]/g, ""));
+    addItem({ id: plan.name.toLowerCase(), name: plan.name + " Plan", price, description: plan.description });
+    toast.success(`${plan.name} Plan added to cart!`);
+  };
+
+  return (
   <section id="pricing" className="py-24">
     <div className="container mx-auto px-4">
       <motion.div
@@ -78,8 +89,17 @@ const Pricing = () => (
                 </li>
               ))}
             </ul>
-            <Button variant={plan.featured ? "hero" : "hero-outline"} className="w-full" asChild>
-              <a href="#contact">Get Started</a>
+            <Button
+              variant={plan.featured ? "hero" : "hero-outline"}
+              className="w-full"
+              onClick={() => handleBuy(plan)}
+              disabled={items.some((i) => i.id === plan.name.toLowerCase())}
+            >
+              {items.some((i) => i.id === plan.name.toLowerCase()) ? (
+                <>Added <Check size={16} /></>
+              ) : (
+                <><ShoppingCart size={16} /> Buy Now</>
+              )}
             </Button>
           </motion.div>
         ))}
@@ -87,5 +107,7 @@ const Pricing = () => (
     </div>
   </section>
 );
+
+};
 
 export default Pricing;
