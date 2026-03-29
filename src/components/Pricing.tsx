@@ -108,4 +108,6 @@ const Pricing = () => {
   </section>
 );
 
+};
+
 export default Pricing;

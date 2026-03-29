@@ -1,25 +1,36 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/contexts/CartContext";
+import { Link, useLocation } from "react-router-dom";
 
 const navLinks = [
-  { label: "Services", href: "#services" },
-  { label: "Case Studies", href: "#case-studies" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Team", href: "#team" },
-  { label: "Contact", href: "#contact" },
+  { label: "Services", href: "/#services" },
+  { label: "Case Studies", href: "/#case-studies" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "Team", href: "/#team" },
+  { label: "Contact", href: "/#contact" },
 ];
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { itemCount } = useCart();
+  const location = useLocation();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const handleNavClick = (href: string) => {
+    setMobileOpen(false);
+    if (location.pathname !== "/" && href.startsWith("/#")) {
+      window.location.href = href;
+    }
+  };
 
   return (
     <nav
@@ -28,9 +39,9 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto flex items-center justify-between px-4">
-        <a href="#" className="font-heading text-xl font-bold gradient-text">
+        <Link to="/" className="font-heading text-xl font-bold gradient-text">
           NexaGrowth
-        </a>
+        </Link>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
@@ -38,20 +49,39 @@ const Navbar = () => {
             <a
               key={link.href}
               href={link.href}
+              onClick={() => handleNavClick(link.href)}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
             >
               {link.label}
             </a>
           ))}
+          <Link to="/cart" className="relative text-muted-foreground hover:text-foreground transition-colors">
+            <ShoppingCart size={20} />
+            {itemCount > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
+          </Link>
           <Button variant="hero" size="sm" asChild>
-            <a href="#contact">Get Free Audit</a>
+            <a href="/#contact">Get Free Audit</a>
           </Button>
         </div>
 
         {/* Mobile toggle */}
-        <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center gap-4 md:hidden">
+          <Link to="/cart" className="relative text-foreground">
+            <ShoppingCart size={20} />
+            {itemCount > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
+          </Link>
+          <button className="text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -67,14 +97,14 @@ const Navbar = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={() => handleNavClick(link.href)}
                   className="text-sm text-muted-foreground hover:text-foreground py-2"
                 >
                   {link.label}
                 </a>
               ))}
               <Button variant="hero" size="sm" asChild>
-                <a href="#contact" onClick={() => setMobileOpen(false)}>Get Free Audit</a>
+                <a href="/#contact" onClick={() => setMobileOpen(false)}>Get Free Audit</a>
               </Button>
             </div>
           </motion.div>
