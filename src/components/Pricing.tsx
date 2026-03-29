@@ -89,8 +89,17 @@ const Pricing = () => {
                 </li>
               ))}
             </ul>
-            <Button variant={plan.featured ? "hero" : "hero-outline"} className="w-full" asChild>
-              <a href="#contact">Get Started</a>
+            <Button
+              variant={plan.featured ? "hero" : "hero-outline"}
+              className="w-full"
+              onClick={() => handleBuy(plan)}
+              disabled={items.some((i) => i.id === plan.name.toLowerCase())}
+            >
+              {items.some((i) => i.id === plan.name.toLowerCase()) ? (
+                <>Added <Check size={16} /></>
+              ) : (
+                <><ShoppingCart size={16} /> Buy Now</>
+              )}
             </Button>
           </motion.div>
         ))}
