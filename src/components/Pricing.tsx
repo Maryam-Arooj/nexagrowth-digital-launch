@@ -10,7 +10,7 @@ const plans = [
     price: "$1,499",
     period: "/mo",
     description: "For startups ready to grow",
-    features: ["SEO Audit & Strategy", "2 Social Platforms", "Monthly Reporting", "Email Support", "Basic Analytics"],
+    features: ["SEO Audit & Strategy", "2 Social Platforms", "Monthly Reporting", "Email Support"],
     featured: false,
   },
   {
@@ -18,7 +18,7 @@ const plans = [
     price: "$3,499",
     period: "/mo",
     description: "For scaling businesses",
-    features: ["Everything in Basic", "Google & Meta Ads", "4 Social Platforms", "Bi-weekly Calls", "Advanced Analytics", "Content Creation"],
+    features: ["Everything in Basic", "Google & Meta Ads", "4 Social Platforms", "Bi-weekly Calls", "Content Creation"],
     featured: true,
   },
   {
@@ -26,7 +26,7 @@ const plans = [
     price: "$6,999",
     period: "/mo",
     description: "For market leaders",
-    features: ["Everything in Pro", "Dedicated Strategist", "Full Funnel Marketing", "A/B Testing", "Custom Dashboards", "Priority Support", "Brand Strategy"],
+    features: ["Everything in Pro", "Dedicated Strategist", "Full Funnel Marketing", "A/B Testing", "Priority Support"],
     featured: false,
   },
 ];
@@ -41,73 +41,70 @@ const Pricing = () => {
   };
 
   return (
-  <section id="pricing" className="py-24">
-    <div className="container mx-auto px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="text-center mb-16"
-      >
-        <span className="text-primary text-sm font-semibold uppercase tracking-widest">Pricing</span>
-        <h2 className="font-heading text-3xl md:text-5xl font-bold mt-3">
-          Plans That <span className="gradient-text">Scale With You</span>
-        </h2>
-      </motion.div>
+    <section id="pricing" className="py-24">
+      <div className="container mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4 }}
+          className="text-center mb-16"
+        >
+          <p className="text-primary text-sm font-medium mb-2">Pricing</p>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Plans that scale with you</h2>
+        </motion.div>
 
-      <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-        {plans.map((plan, i) => (
-          <motion.div
-            key={plan.name}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.15 }}
-            className={`rounded-2xl p-6 md:p-8 flex flex-col ${
-              plan.featured
-                ? "glass-card gradient-border hover-glow relative"
-                : "glass-card hover-glow"
-            }`}
-          >
-            {plan.featured && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-secondary text-primary-foreground text-xs font-semibold px-4 py-1 rounded-full">
-                Most Popular
-              </span>
-            )}
-            <h3 className="font-heading text-xl font-semibold">{plan.name}</h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">{plan.description}</p>
-            <div className="flex items-end gap-1 mb-6">
-              <span className="font-heading text-4xl font-bold">{plan.price}</span>
-              <span className="text-muted-foreground text-sm mb-1">{plan.period}</span>
-            </div>
-            <ul className="space-y-3 flex-1 mb-8">
-              {plan.features.map((f) => (
-                <li key={f} className="flex items-center gap-3 text-sm">
-                  <Check size={16} className="text-primary shrink-0" />
-                  <span className="text-muted-foreground">{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Button
-              variant={plan.featured ? "hero" : "hero-outline"}
-              className="w-full"
-              onClick={() => handleBuy(plan)}
-              disabled={items.some((i) => i.id === plan.name.toLowerCase())}
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {plans.map((plan, i) => (
+            <motion.div
+              key={plan.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              className={`rounded-2xl p-6 flex flex-col border transition-all duration-300 hover:shadow-md ${
+                plan.featured
+                  ? "border-primary bg-card shadow-sm relative"
+                  : "border-border bg-card"
+              }`}
             >
-              {items.some((i) => i.id === plan.name.toLowerCase()) ? (
-                <>Added <Check size={16} /></>
-              ) : (
-                <><ShoppingCart size={16} /> Buy Now</>
+              {plan.featured && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
+                  Popular
+                </span>
               )}
-            </Button>
-          </motion.div>
-        ))}
+              <h3 className="text-lg font-semibold">{plan.name}</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">{plan.description}</p>
+              <div className="flex items-end gap-1 mb-6">
+                <span className="text-3xl font-bold">{plan.price}</span>
+                <span className="text-muted-foreground text-sm mb-0.5">{plan.period}</span>
+              </div>
+              <ul className="space-y-2.5 flex-1 mb-6">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2.5 text-sm">
+                    <Check size={14} className="text-primary shrink-0" />
+                    <span className="text-muted-foreground">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                variant={plan.featured ? "default" : "outline"}
+                className="w-full"
+                onClick={() => handleBuy(plan)}
+                disabled={items.some((i) => i.id === plan.name.toLowerCase())}
+              >
+                {items.some((i) => i.id === plan.name.toLowerCase()) ? (
+                  <>Added <Check size={14} /></>
+                ) : (
+                  <><ShoppingCart size={14} /> Buy Now</>
+                )}
+              </Button>
+            </motion.div>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
-
+    </section>
+  );
 };
 
 export default Pricing;

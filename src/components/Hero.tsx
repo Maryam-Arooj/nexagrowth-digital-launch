@@ -1,85 +1,66 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-const Hero = () => {
-  return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: "var(--gradient-hero)" }}>
-      {/* Floating orbs */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-[120px] animate-float" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-[120px] animate-float" style={{ animationDelay: "1.5s" }} />
-
-      <div className="container mx-auto px-4 relative z-10 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8">
-            <Sparkles size={16} className="text-primary" />
-            <span className="text-sm text-muted-foreground">#1 Digital Growth Partner</span>
-          </div>
-        </motion.div>
-
+const Hero = () => (
+  <section className="min-h-[85vh] flex items-center pt-16">
+    <div className="container mx-auto px-4">
+      <div className="max-w-2xl mx-auto text-center">
         <motion.h1
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.15 }}
-          className="font-heading text-4xl sm:text-5xl md:text-7xl font-bold leading-tight mb-6"
+          transition={{ duration: 0.5 }}
+          className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] text-foreground"
         >
-          We Scale Brands with{" "}
-          <span className="gradient-text">Data-Driven</span>
-          <br />
-          Digital Marketing
+          Grow your brand with smart digital marketing
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-lg text-muted-foreground mt-6 max-w-lg mx-auto"
         >
-          From SEO to paid ads, we craft strategies that turn clicks into customers and data into growth.
+          We help businesses scale with SEO, ads, and social — backed by real data.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.45 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center"
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-col sm:flex-row gap-3 justify-center mt-10"
         >
-          <Button variant="hero" size="lg" className="text-base" asChild>
+          <Button size="lg" asChild>
             <a href="#contact">
-              Get Free Audit <ArrowRight size={18} />
+              Get Free Audit <ArrowRight size={16} />
             </a>
           </Button>
-          <Button variant="hero-outline" size="lg" className="text-base" asChild>
-            <a href="#case-studies">View Our Work</a>
+          <Button variant="outline" size="lg" asChild>
+            <a href="#services">View Services</a>
           </Button>
         </motion.div>
 
-        {/* Stats bar */}
+        {/* Simple decorative element */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-20 glass-card rounded-2xl p-6 md:p-8 max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mt-20 flex items-center justify-center gap-12 text-muted-foreground"
         >
           {[
             { value: "150+", label: "Clients" },
+            { value: "3.2x", label: "Avg ROI" },
             { value: "97%", label: "Retention" },
-            { value: "3.2x", label: "Avg. ROI" },
-            { value: "50M+", label: "Revenue Generated" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <div className="font-heading text-2xl md:text-3xl font-bold gradient-text">{stat.value}</div>
-              <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+              <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
             </div>
           ))}
         </motion.div>
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 export default Hero;
