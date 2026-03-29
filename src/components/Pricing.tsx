@@ -31,7 +31,16 @@ const plans = [
   },
 ];
 
-const Pricing = () => (
+const Pricing = () => {
+  const { addItem, items } = useCart();
+
+  const handleBuy = (plan: typeof plans[0]) => {
+    const price = parseInt(plan.price.replace(/[$,]/g, ""));
+    addItem({ id: plan.name.toLowerCase(), name: plan.name + " Plan", price, description: plan.description });
+    toast.success(`${plan.name} Plan added to cart!`);
+  };
+
+  return (
   <section id="pricing" className="py-24">
     <div className="container mx-auto px-4">
       <motion.div
