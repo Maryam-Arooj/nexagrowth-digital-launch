@@ -12,7 +12,7 @@ const About = () => (
         >
           <p className="text-primary text-sm font-medium mb-2">About us</p>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-6">
-            Marketing that actually works
+            Marketing that <span className="gradient-text">actually works</span>
           </h2>
           <p className="text-muted-foreground leading-relaxed">
             NexaGrowth Digital is a performance-focused agency. We combine data, creativity, and strategy to help brands grow faster. No fluff — just results.
@@ -30,11 +30,17 @@ const About = () => (
             { value: "5+", label: "Years" },
             { value: "150+", label: "Clients" },
             { value: "$50M+", label: "Revenue driven" },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <div className="text-2xl md:text-3xl font-bold text-foreground">{stat.value}</div>
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.2 + i * 0.1 }}
+            >
+              <div className="text-2xl md:text-3xl font-bold gradient-text">{stat.value}</div>
               <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
-            </div>
+            </motion.div>
           ))}
         </motion.div>
       </div>

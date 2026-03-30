@@ -5,8 +5,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 
 const Contact = () => (
-  <section id="contact" className="py-24 bg-muted/50">
-    <div className="container mx-auto px-4">
+  <section id="contact" className="py-24 bg-muted/50 relative overflow-hidden">
+    <motion.div
+      animate={{ x: [0, 20, 0], y: [0, -15, 0] }}
+      transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute top-10 right-10 w-64 h-64 rounded-full bg-primary/10 blur-[80px]"
+    />
+    <motion.div
+      animate={{ x: [0, -15, 0], y: [0, 20, 0] }}
+      transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute bottom-10 left-10 w-48 h-48 rounded-full bg-accent/10 blur-[80px]"
+    />
+
+    <div className="container mx-auto px-4 relative z-10">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -27,12 +38,12 @@ const Contact = () => (
         onSubmit={(e) => e.preventDefault()}
       >
         <div className="grid sm:grid-cols-2 gap-4">
-          <Input placeholder="Name" className="bg-card" />
-          <Input placeholder="Email" type="email" className="bg-card" />
+          <Input placeholder="Name" className="bg-card border-border focus:border-primary" />
+          <Input placeholder="Email" type="email" className="bg-card border-border focus:border-primary" />
         </div>
-        <Input placeholder="Website URL" className="bg-card" />
-        <Textarea placeholder="Tell us about your goals..." rows={3} className="bg-card resize-none" />
-        <Button size="lg" className="w-full">
+        <Input placeholder="Website URL" className="bg-card border-border focus:border-primary" />
+        <Textarea placeholder="Tell us about your goals..." rows={3} className="bg-card border-border focus:border-primary resize-none" />
+        <Button size="lg" className="w-full gradient-bg border-0 text-white hover:opacity-90">
           Send Message <Send size={16} />
         </Button>
       </motion.form>

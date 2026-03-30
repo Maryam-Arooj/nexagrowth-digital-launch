@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Quote } from "lucide-react";
 
 const testimonials = [
   {
@@ -31,15 +32,17 @@ const Testimonials = () => (
         {testimonials.map((t, i) => (
           <motion.div
             key={t.name}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: i * 0.1 }}
-            className="rounded-2xl border border-border bg-card p-6"
+            transition={{ duration: 0.5, delay: i * 0.15 }}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="rounded-2xl border border-border bg-card p-6 hover:border-primary/30 hover:glow-purple transition-all duration-300 relative"
           >
+            <Quote size={24} className="text-primary/20 absolute top-4 right-4" />
             <p className="text-sm text-muted-foreground leading-relaxed mb-5">"{t.quote}"</p>
             <div>
-              <p className="text-sm font-semibold">{t.name}</p>
+              <p className="text-sm font-semibold gradient-text inline-block">{t.name}</p>
               <p className="text-xs text-muted-foreground">{t.role}</p>
             </div>
           </motion.div>
