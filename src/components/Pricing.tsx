@@ -6,26 +6,17 @@ import { toast } from "sonner";
 
 const plans = [
   {
-    name: "Basic",
-    price: "$1,499",
-    period: "/mo",
-    description: "For startups ready to grow",
+    name: "Basic", price: "$1,499", period: "/mo", description: "For startups ready to grow",
     features: ["SEO Audit & Strategy", "2 Social Platforms", "Monthly Reporting", "Email Support"],
     featured: false,
   },
   {
-    name: "Pro",
-    price: "$3,499",
-    period: "/mo",
-    description: "For scaling businesses",
+    name: "Pro", price: "$3,499", period: "/mo", description: "For scaling businesses",
     features: ["Everything in Basic", "Google & Meta Ads", "4 Social Platforms", "Bi-weekly Calls", "Content Creation"],
     featured: true,
   },
   {
-    name: "Premium",
-    price: "$6,999",
-    period: "/mo",
-    description: "For market leaders",
+    name: "Premium", price: "$6,999", period: "/mo", description: "For market leaders",
     features: ["Everything in Pro", "Dedicated Strategist", "Full Funnel Marketing", "A/B Testing", "Priority Support"],
     featured: false,
   },
@@ -58,25 +49,26 @@ const Pricing = () => {
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
-              className={`rounded-2xl p-6 flex flex-col border transition-all duration-300 hover:shadow-md ${
+              transition={{ duration: 0.5, delay: i * 0.15 }}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              className={`rounded-2xl p-6 flex flex-col border transition-all duration-300 hover:shadow-lg ${
                 plan.featured
-                  ? "border-primary bg-card shadow-sm relative"
-                  : "border-border bg-card"
+                  ? "border-primary glow-purple bg-card relative"
+                  : "border-border bg-card hover:border-primary/30"
               }`}
             >
               {plan.featured && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-bg text-white text-xs font-medium px-3 py-1 rounded-full">
                   Popular
                 </span>
               )}
               <h3 className="text-lg font-semibold">{plan.name}</h3>
               <p className="text-sm text-muted-foreground mt-1 mb-4">{plan.description}</p>
               <div className="flex items-end gap-1 mb-6">
-                <span className="text-3xl font-bold">{plan.price}</span>
+                <span className="text-3xl font-bold gradient-text">{plan.price}</span>
                 <span className="text-muted-foreground text-sm mb-0.5">{plan.period}</span>
               </div>
               <ul className="space-y-2.5 flex-1 mb-6">
@@ -89,7 +81,7 @@ const Pricing = () => {
               </ul>
               <Button
                 variant={plan.featured ? "default" : "outline"}
-                className="w-full"
+                className={plan.featured ? "gradient-bg border-0 text-white hover:opacity-90" : "border-primary/30 hover:bg-primary/5"}
                 onClick={() => handleBuy(plan)}
                 disabled={items.some((i) => i.id === plan.name.toLowerCase())}
               >

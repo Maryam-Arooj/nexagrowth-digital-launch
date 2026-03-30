@@ -37,14 +37,15 @@ const Services = () => (
         {services.map((service, i) => (
           <motion.div
             key={service.title}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: i * 0.1 }}
-            className="rounded-2xl border border-border bg-card p-6 hover:border-primary/30 hover:shadow-md transition-all duration-300"
+            transition={{ duration: 0.5, delay: i * 0.15 }}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
+            className="rounded-2xl border border-border bg-card p-6 hover:border-primary/40 hover:glow-purple transition-all duration-300 group cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-              <service.icon size={20} className="text-primary" />
+            <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+              <service.icon size={20} className="text-white" />
             </div>
             <h3 className="text-lg font-semibold mb-2">{service.title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{service.description}</p>

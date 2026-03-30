@@ -2,24 +2,9 @@ import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 
 const cases = [
-  {
-    company: "TechNova SaaS",
-    metric: "200%",
-    label: "Organic traffic growth",
-    tag: "SEO",
-  },
-  {
-    company: "UrbanStyle E-com",
-    metric: "4.8x",
-    label: "Return on ad spend",
-    tag: "Ads",
-  },
-  {
-    company: "FreshBite D2C",
-    metric: "320%",
-    label: "Social engagement lift",
-    tag: "Social",
-  },
+  { company: "TechNova SaaS", metric: "200%", label: "Organic traffic growth", tag: "SEO" },
+  { company: "UrbanStyle E-com", metric: "4.8x", label: "Return on ad spend", tag: "Ads" },
+  { company: "FreshBite D2C", metric: "320%", label: "Social engagement lift", tag: "Social" },
 ];
 
 const CaseStudies = () => (
@@ -40,16 +25,17 @@ const CaseStudies = () => (
         {cases.map((c, i) => (
           <motion.div
             key={c.company}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: i * 0.1 }}
-            className="rounded-2xl border border-border bg-card p-6"
+            transition={{ duration: 0.5, delay: i * 0.15 }}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="rounded-2xl border border-border bg-card p-6 hover:border-accent/40 hover:glow-pink transition-all duration-300"
           >
-            <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">{c.tag}</span>
+            <span className="text-xs font-medium text-white gradient-bg px-2.5 py-1 rounded-full">{c.tag}</span>
             <div className="flex items-end gap-2 mt-4 mb-1">
-              <span className="text-3xl font-bold text-foreground">{c.metric}</span>
-              <TrendingUp size={18} className="text-primary mb-1" />
+              <span className="text-3xl font-bold gradient-text">{c.metric}</span>
+              <TrendingUp size={18} className="text-accent mb-1" />
             </div>
             <p className="text-sm text-muted-foreground">{c.label}</p>
             <p className="text-sm font-medium mt-3">{c.company}</p>
