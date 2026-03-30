@@ -6,93 +6,104 @@ import { toast } from "sonner";
 
 const plans = [
   {
-    name: "Basic", price: "$1,499", period: "/mo", description: "For startups ready to grow",
-    features: ["SEO Audit & Strategy", "2 Social Platforms", "Monthly Reporting", "Email Support"],
+    name: "Starter",
+    price: "$1,499",
+    period: "/mo",
+    description: "For startups building their digital presence",
+    features: ["SEO audit & strategy", "2 social platforms", "Monthly performance report", "Email support"],
     featured: false,
   },
   {
-    name: "Pro", price: "$3,499", period: "/mo", description: "For scaling businesses",
-    features: ["Everything in Basic", "Google & Meta Ads", "4 Social Platforms", "Bi-weekly Calls", "Content Creation"],
+    name: "Growth",
+    price: "$3,499",
+    period: "/mo",
+    description: "For scaling businesses ready to accelerate",
+    features: ["Everything in Starter", "Google & Meta Ads management", "4 social platforms", "Bi-weekly strategy calls", "Content creation"],
     featured: true,
   },
   {
-    name: "Premium", price: "$6,999", period: "/mo", description: "For market leaders",
-    features: ["Everything in Pro", "Dedicated Strategist", "Full Funnel Marketing", "A/B Testing", "Priority Support"],
+    name: "Enterprise",
+    price: "$6,999",
+    period: "/mo",
+    description: "For market leaders who need a full-service partner",
+    features: ["Everything in Growth", "Dedicated strategist", "Full-funnel campaign management", "A/B testing & CRO", "Priority support & Slack channel"],
     featured: false,
   },
 ];
 
+const fadeUp = {
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true } as const,
+};
+
 const Pricing = () => {
   const { addItem, items } = useCart();
 
-  const handleBuy = (plan: typeof plans[0]) => {
+  const handleBuy = (plan: (typeof plans)[0]) => {
     const price = parseInt(plan.price.replace(/[$,]/g, ""));
     addItem({ id: plan.name.toLowerCase(), name: plan.name + " Plan", price, description: plan.description });
-    toast.success(`${plan.name} Plan added to cart!`);
+    toast.success(`${plan.name} Plan added to cart`);
   };
 
   return (
     <section id="pricing" className="py-24">
       <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center mb-16"
-        >
-          <p className="text-primary text-sm font-medium mb-2">Pricing</p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Plans that scale with you</h2>
+        <motion.div {...fadeUp} transition={{ duration: 0.4 }} className="text-center max-w-xl mx-auto mb-14">
+          <p className="text-primary text-sm font-semibold mb-2 tracking-wide uppercase">Pricing</p>
+          <h2 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">
+            Transparent plans, no surprises
+          </h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {plans.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.15 }}
-              whileHover={{ y: -6, transition: { duration: 0.2 } }}
-              className={`rounded-2xl p-6 flex flex-col border transition-all duration-300 hover:shadow-lg ${
-                plan.featured
-                  ? "border-primary glow-purple bg-card relative"
-                  : "border-border bg-card hover:border-primary/30"
-              }`}
-            >
-              {plan.featured && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-bg text-white text-xs font-medium px-3 py-1 rounded-full">
-                  Popular
-                </span>
-              )}
-              <h3 className="text-lg font-semibold">{plan.name}</h3>
-              <p className="text-sm text-muted-foreground mt-1 mb-4">{plan.description}</p>
-              <div className="flex items-end gap-1 mb-6">
-                <span className="text-3xl font-bold gradient-text">{plan.price}</span>
-                <span className="text-muted-foreground text-sm mb-0.5">{plan.period}</span>
-              </div>
-              <ul className="space-y-2.5 flex-1 mb-6">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm">
-                    <Check size={14} className="text-primary shrink-0" />
-                    <span className="text-muted-foreground">{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                variant={plan.featured ? "default" : "outline"}
-                className={plan.featured ? "gradient-bg border-0 text-white hover:opacity-90" : "border-primary/30 hover:bg-primary/5"}
-                onClick={() => handleBuy(plan)}
-                disabled={items.some((i) => i.id === plan.name.toLowerCase())}
+        <div className="grid md:grid-cols-3 gap-5 max-w-4xl mx-auto">
+          {plans.map((plan, i) => {
+            const inCart = items.some((item) => item.id === plan.name.toLowerCase());
+            return (
+              <motion.div
+                key={plan.name}
+                {...fadeUp}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                className={`rounded-xl p-6 flex flex-col border transition-all duration-300 hover:shadow-md ${
+                  plan.featured
+                    ? "border-primary bg-card shadow-sm relative"
+                    : "border-border bg-card"
+                }`}
               >
-                {items.some((i) => i.id === plan.name.toLowerCase()) ? (
-                  <>Added <Check size={14} /></>
-                ) : (
-                  <><ShoppingCart size={14} /> Buy Now</>
+                {plan.featured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[11px] font-semibold px-3 py-1 rounded-full">
+                    Most Popular
+                  </span>
                 )}
-              </Button>
-            </motion.div>
-          ))}
+                <h3 className="font-heading text-lg font-bold">{plan.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">{plan.description}</p>
+                <div className="flex items-end gap-1 mb-6">
+                  <span className="font-heading text-3xl font-extrabold">{plan.price}</span>
+                  <span className="text-muted-foreground text-sm mb-0.5">{plan.period}</span>
+                </div>
+                <ul className="space-y-2.5 flex-1 mb-6">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm">
+                      <Check size={14} className="text-primary shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant={plan.featured ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => handleBuy(plan)}
+                  disabled={inCart}
+                >
+                  {inCart ? (
+                    <>Added <Check size={14} /></>
+                  ) : (
+                    <><ShoppingCart size={14} /> Buy Now</>
+                  )}
+                </Button>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
