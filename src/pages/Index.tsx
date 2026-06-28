@@ -6,6 +6,7 @@ import WhyChooseUs from "@/components/WhyChooseUs";
 import Testimonials from "@/components/Testimonials";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
+import MarketingStrategist from "@/components/MarketingStrategist";
 
 const Index = () => (
   <div className="min-h-screen">
@@ -17,6 +18,7 @@ const Index = () => (
     <Testimonials />
     <Contact />
     <Footer />
+    <MarketingStrategist />
   </div>
 );
 
