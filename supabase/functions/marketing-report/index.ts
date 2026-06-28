@@ -1,4 +1,4 @@
-import { generateText, Output } from "npm:ai";
+import { generateObject } from "npm:ai";
 import { z } from "npm:zod";
 import { createLovableAiGatewayProvider, corsHeaders } from "../_shared/ai-gateway.ts";
 
