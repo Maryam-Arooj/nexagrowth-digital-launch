@@ -1,4 +1,4 @@
-import { generateObject } from "npm:ai";
+import { generateText } from "npm:ai";
 import { z } from "npm:zod";
 import { createLovableAiGatewayProvider, corsHeaders } from "../_shared/ai-gateway.ts";
 
@@ -87,14 +87,34 @@ Deno.serve(async (req) => {
     if (!business) throw new Error("business required");
 
     const gateway = createLovableAiGatewayProvider(key);
-    const { object } = await generateObject({
+    const { text } = await generateText({
       model: gateway("google/gemini-3-flash-preview"),
-      system: SYSTEM,
-      schema: ReportSchema,
-      prompt: `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn the structured report.`,
+      system: SYSTEM + "\n\nReturn ONLY valid minified JSON matching the requested schema. No markdown fences, no commentary.",
+      prompt: `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn a JSON object with EXACTLY these keys: companyName(string), executiveSummary(string), businessAnalysis{model,audience,strengths,currentPosition}, swot{strengths[],weaknesses[],opportunities[],threats[]}, competitorAnalysis{topCompetitors[{name,note}],competitiveAdvantages[],marketGaps[],differentiationStrategy}, marketingStrategy[{channel,why,priority}], budgetAllocation[{channel,percent(number),amount(number),expectedRoi(string)}] (percent sums to 100), actionPlan{week1[],week2[],week3[],week4[]}, seo{primaryKeywords[],secondaryKeywords[],longTailKeywords[],metaTitle,metaDescription,blogIdeas[],internalLinking[]}, contentIdeas{instagramPosts[],reels[],stories[],facebookPosts[],linkedinPosts[],emailCampaigns[]}, kpis{expectedLeads,conversionRate,roas,ctr,trafficGrowth,monthlySales}, riskAnalysis[{risk,mitigation}], confidence{score(number 0-100),reasoning}, finalRecommendations[].`,
     });
 
-    return new Response(JSON.stringify({ report: object }), {
+    // Extract JSON from possible markdown fences
+    let jsonText = text.trim();
+    const fenceMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonText = fenceMatch[1].trim();
+    const firstBrace = jsonText.indexOf("{");
+    const lastBrace = jsonText.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+
+    let parsed: unknown;
+    try { parsed = JSON.parse(jsonText); }
+    catch { throw new Error("AI returned invalid JSON"); }
+
+    const result = ReportSchema.safeParse(parsed);
+    if (!result.success) {
+      console.error("schema error:", JSON.stringify(result.error.issues).slice(0, 1000));
+      // Return parsed object anyway — UI is defensive
+      return new Response(JSON.stringify({ report: parsed }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ report: result.data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
