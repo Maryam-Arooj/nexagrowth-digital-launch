@@ -87,14 +87,14 @@ Deno.serve(async (req) => {
     if (!business) throw new Error("business required");
 
     const gateway = createLovableAiGatewayProvider(key);
-    const { experimental_output } = await generateText({
+    const { object } = await generateObject({
       model: gateway("google/gemini-3-flash-preview"),
       system: SYSTEM,
+      schema: ReportSchema,
       prompt: `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn the structured report.`,
-      experimental_output: Output.object({ schema: ReportSchema }),
     });
 
-    return new Response(JSON.stringify({ report: experimental_output }), {
+    return new Response(JSON.stringify({ report: object }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
