@@ -647,6 +647,9 @@ const ReportView = ({
         </ul>
       </SectionCard>
 
+      {/* Lead Qualification Dashboard */}
+      {qualification && <LeadQualificationCard q={qualification} />}
+
       {/* Actions */}
       <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-accent/5 p-5">
         <h3 className="font-heading font-semibold mb-1 flex items-center gap-2"><Wand2 className="w-4 h-4 text-primary" /> Next Recommended Actions</h3>
