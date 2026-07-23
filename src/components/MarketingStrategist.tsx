@@ -672,6 +672,120 @@ const ReportView = ({
   );
 };
 
+// ============ Lead Qualification ============
+const LeadQualificationCard = ({ q }: { q: Qualification }) => {
+  const statusMap = {
+    Hot:  { icon: Flame,     color: "text-red-500",    bg: "bg-red-500/10 border-red-500/30",    grad: "from-red-500 to-orange-500" },
+    Warm: { icon: Zap,       color: "text-amber-500",  bg: "bg-amber-500/10 border-amber-500/30", grad: "from-amber-500 to-yellow-500" },
+    Cold: { icon: Snowflake, color: "text-blue-400",   bg: "bg-blue-500/10 border-blue-500/30",  grad: "from-blue-400 to-cyan-500" },
+  } as const;
+  const s = statusMap[q.leadStatus] ?? statusMap.Warm;
+  const StatusIcon = s.icon;
+
+  const planTone = q.recommendedPlan === "Enterprise" ? "amber" : q.recommendedPlan === "Growth" ? "green" : "blue";
+
+  const breakdown = [
+    { l: "Industry Fit",     v: q.scoreBreakdown?.industryFit ?? 0,     max: 20 },
+    { l: "Goal Clarity",     v: q.scoreBreakdown?.goalClarity ?? 0,     max: 15 },
+    { l: "Budget",           v: q.scoreBreakdown?.budget ?? 0,          max: 30 },
+    { l: "Audience",         v: q.scoreBreakdown?.audience ?? 0,        max: 15 },
+    { l: "Channel Maturity", v: q.scoreBreakdown?.channelMaturity ?? 0, max: 20 },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="p-5 md:p-6 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 border-b border-border">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+            <Target className="w-4 h-4 text-primary" />
+          </div>
+          <h3 className="font-heading font-semibold text-base md:text-lg">AI Lead Qualification</h3>
+          <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">Auto-generated</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Automatically scored from your business inputs.</p>
+      </div>
+
+      <div className="p-5 md:p-6 space-y-5">
+        {/* Score + Status */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 rounded-xl border border-border p-5">
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Lead Score</p>
+                <p className={`text-5xl font-heading font-bold bg-gradient-to-br ${s.grad} bg-clip-text text-transparent`}>
+                  {q.leadScore}<span className="text-2xl text-muted-foreground">/100</span>
+                </p>
+              </div>
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${s.bg}`}>
+                <StatusIcon className={`w-4 h-4 ${s.color}`} />
+                <span className={`text-sm font-semibold ${s.color}`}>{q.leadStatus} Lead</span>
+              </div>
+            </div>
+            <Progress value={q.leadScore} className="h-2" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4">
+              {breakdown.map((b) => (
+                <div key={b.l} className="rounded-lg border border-border/60 p-2">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{b.l}</p>
+                  <p className="text-sm font-semibold mt-0.5">{b.v}<span className="text-[10px] text-muted-foreground">/{b.max}</span></p>
+                  <Progress value={(b.v / b.max) * 100} className="h-1 mt-1" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border p-5 bg-gradient-to-br from-primary/5 to-accent/5">
+            <div className="flex items-center gap-2 mb-2">
+              <Award className="w-4 h-4 text-primary" />
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recommended Plan</p>
+            </div>
+            <p className="text-2xl font-heading font-bold mb-2">{q.recommendedPlan}</p>
+            <Pill tone={planTone as any}>Best Fit</Pill>
+            <p className="text-xs text-foreground/80 mt-3 leading-relaxed">{q.planReasoning}</p>
+          </div>
+        </div>
+
+        {/* Business Potential */}
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Business Potential</p>
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed">{q.businessPotential}</p>
+        </div>
+
+        {/* Priorities */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="w-4 h-4 text-primary" />
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Top 3 Marketing Priorities</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-3">
+            {q.topPriorities?.slice(0, 3).map((p, i) => (
+              <div key={i} className="rounded-lg border border-border p-3 flex gap-3">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {i + 1}
+                </div>
+                <p className="text-sm text-foreground/90">{p}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Next Action */}
+        <div className="rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-accent/10 p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+            <ArrowRight className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-primary font-semibold mb-0.5">Next Recommended Action</p>
+            <p className="text-sm font-medium text-foreground">{q.nextAction}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============ Action result ============
 const ActionView = ({ result }: { result: { label: string; text: string } }) => {
   const handleCopy = () => { navigator.clipboard.writeText(result.text); toast.success("Copied"); };
