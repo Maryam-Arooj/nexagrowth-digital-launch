@@ -57,7 +57,20 @@ type Report = {
   finalRecommendations: string[];
 };
 
-type Saved = { business: Business; report: Report } | null;
+type Qualification = {
+  leadScore: number;
+  leadStatus: "Hot" | "Warm" | "Cold";
+  businessPotential: string;
+  recommendedPlan: "Starter" | "Growth" | "Enterprise";
+  planReasoning: string;
+  topPriorities: string[];
+  nextAction: string;
+  scoreBreakdown: {
+    industryFit: number; goalClarity: number; budget: number; audience: number; channelMaturity: number;
+  };
+};
+
+type Saved = { business: Business; report: Report; qualification?: Qualification | null } | null;
 
 function loadSaved(): Saved {
   if (typeof window === "undefined") return null;
