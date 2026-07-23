@@ -96,13 +96,19 @@ export const MarketingStrategist = () => {
     companyName: "", industry: "", audience: "", budget: "", goal: "", currentChannels: "",
   });
   const [report, setReport] = useState<Report | null>(null);
+  const [qualification, setQualification] = useState<Qualification | null>(null);
   const [actionResult, setActionResult] = useState<{ label: string; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Load saved
   useEffect(() => {
     const s = loadSaved();
-    if (s) { setBusiness(s.business); setReport(s.report); setStage("report"); }
+    if (s) {
+      setBusiness(s.business);
+      setReport(s.report);
+      if (s.qualification) setQualification(s.qualification);
+      setStage("report");
+    }
   }, []);
 
   const generateReport = async () => {
@@ -112,15 +118,32 @@ export const MarketingStrategist = () => {
     }
     setStage("loading");
     try {
-      const res = await fetch(`${FN_URL}/marketing-report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: AUTH },
-        body: JSON.stringify({ business }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
-      setReport(data.report);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ business, report: data.report }));
+      const [reportRes, qualRes] = await Promise.all([
+        fetch(`${FN_URL}/marketing-report`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: AUTH },
+          body: JSON.stringify({ business }),
+        }),
+        fetch(`${FN_URL}/lead-qualification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: AUTH },
+          body: JSON.stringify({ business }),
+        }),
+      ]);
+      const reportData = await reportRes.json();
+      if (!reportRes.ok) throw new Error(reportData.error || "Generation failed");
+
+      let qual: Qualification | null = null;
+      if (qualRes.ok) {
+        const qd = await qualRes.json();
+        qual = qd.qualification ?? null;
+      } else {
+        console.error("qualification failed");
+      }
+
+      setReport(reportData.report);
+      setQualification(qual);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ business, report: reportData.report, qualification: qual }));
       setStage("report");
       toast.success("Strategy report generated");
     } catch (e: any) {
