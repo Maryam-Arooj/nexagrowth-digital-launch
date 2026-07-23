@@ -273,6 +273,7 @@ export const MarketingStrategist = () => {
                 {stage === "report" && report && (
                   <ReportView
                     report={report}
+                    qualification={qualification}
                     onAction={runAction}
                     actionLoading={actionLoading}
                   />
