@@ -329,7 +329,7 @@ const IntakeForm = ({
         <div className="md:col-span-2">{F("currentChannels", "Current Marketing Channels", "What are you doing today?", true)}</div>
       </div>
       <Button onClick={onSubmit} className="w-full mt-6 h-11 bg-gradient-to-br from-primary to-accent text-base">
-        <Sparkles className="w-4 h-4 mr-2" /> Generate Strategy Report
+        <Sparkles className="w-4 h-4 mr-2" /> Consult with AI Employee
       </Button>
     </div>
   );
