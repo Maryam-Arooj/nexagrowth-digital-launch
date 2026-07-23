@@ -4,7 +4,7 @@ import {
   BrainCircuit, X, Loader2, Download, Sparkles, Target, TrendingUp, Users,
   BarChart3, Calendar, Search, FileText, AlertTriangle, Gauge, Lightbulb,
   DollarSign, Megaphone, ShieldAlert, ChevronDown, Wand2, RotateCcw, ArrowLeft,
-  Copy, CheckCircle2,
+  Copy, CheckCircle2, Flame, Snowflake, Award, Zap, ArrowRight,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
