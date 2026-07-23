@@ -413,8 +413,8 @@ const Pill = ({ children, tone = "default" }: { children: React.ReactNode; tone?
 };
 
 const ReportView = ({
-  report, onAction, actionLoading,
-}: { report: Report; onAction: (id: string, label: string) => void; actionLoading: string | null }) => {
+  report, qualification, onAction, actionLoading,
+}: { report: Report; qualification: Qualification | null; onAction: (id: string, label: string) => void; actionLoading: string | null }) => {
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
       {/* Hero summary */}
