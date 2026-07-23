@@ -178,6 +178,7 @@ export const MarketingStrategist = () => {
   const handleReset = () => {
     localStorage.removeItem(STORAGE_KEY);
     setReport(null);
+    setQualification(null);
     setBusiness({ companyName: "", industry: "", audience: "", budget: "", goal: "", currentChannels: "" });
     setStage("intake");
     toast.success("Reset complete");
