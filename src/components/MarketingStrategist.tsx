@@ -289,6 +289,150 @@ export const MarketingStrategist = () => {
 };
 
 // ============ Intake ============
+// Parse first number from a budget string like "$3,000 - $5,000" → 3000
+function parseBudget(s: string): number {
+  const nums = (s || "").replace(/,/g, "").match(/\d+(\.\d+)?/g);
+  if (!nums || !nums.length) return 0;
+  const vals = nums.map(Number).filter((n) => n > 0);
+  if (!vals.length) return 0;
+  // If range, use average
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  // If value looks like "3" (i.e. $3k shorthand), scale up
+  return avg < 100 ? avg * 1000 : avg;
+}
+
+// Industry multipliers: cost-per-lead baseline (USD) and ROAS baseline
+function industryBenchmarks(industry: string) {
+  const s = (industry || "").toLowerCase();
+  if (/saas|software|b2b/.test(s)) return { cpl: 55, roas: 3.5, label: "B2B SaaS" };
+  if (/ecom|d2c|retail|apparel|store|shop/.test(s)) return { cpl: 22, roas: 4.2, label: "Ecommerce" };
+  if (/health|clinic|dental|medical/.test(s)) return { cpl: 45, roas: 3.8, label: "Healthcare" };
+  if (/real ?estate|property/.test(s)) return { cpl: 60, roas: 3.0, label: "Real Estate" };
+  if (/finance|fintech|insurance/.test(s)) return { cpl: 75, roas: 3.2, label: "Finance" };
+  if (/edu|course|coach|training/.test(s)) return { cpl: 30, roas: 3.6, label: "Education" };
+  if (/local|restaurant|salon|service/.test(s)) return { cpl: 18, roas: 4.5, label: "Local Service" };
+  return { cpl: 38, roas: 3.5, label: "General" };
+}
+
+function computeROI(business: Business) {
+  const budget = parseBudget(business.budget);
+  const bench = industryBenchmarks(business.industry);
+  const filled = [business.companyName, business.industry, business.audience, business.budget, business.goal, business.currentChannels]
+    .filter((v) => v && v.trim().length > 1).length;
+  const completeness = Math.round((filled / 6) * 100);
+
+  // Audience specificity bonus
+  const audienceLen = (business.audience || "").trim().length;
+  const audienceMult = audienceLen > 40 ? 1.15 : audienceLen > 15 ? 1.05 : 0.9;
+
+  // Channel maturity bonus
+  const ch = (business.currentChannels || "").toLowerCase();
+  const channelSignals = ["seo", "google", "meta", "facebook", "instagram", "linkedin", "tiktok", "email", "ads"].filter((k) => ch.includes(k)).length;
+  const channelMult = 1 + Math.min(channelSignals, 4) * 0.05;
+
+  // Effective CPL
+  const cpl = Math.max(8, bench.cpl / (audienceMult * channelMult));
+  const leadsLow = budget > 0 ? Math.floor((budget * 0.85) / cpl) : 0;
+  const leadsHigh = budget > 0 ? Math.ceil((budget * 1.15) / cpl) : 0;
+  const roas = +(bench.roas * audienceMult).toFixed(1);
+  const revenueLow = Math.round(budget * roas * 0.85);
+  const revenueHigh = Math.round(budget * roas * 1.15);
+
+  // Priorities update based on inputs
+  const priorities: { label: string; reason: string }[] = [];
+  const goal = (business.goal || "").toLowerCase();
+  const industry = (business.industry || "").toLowerCase();
+
+  if (budget >= 6000) priorities.push({ label: "Full-funnel Google + Meta Ads", reason: "Budget supports paid scale + retargeting." });
+  else if (budget >= 2000) priorities.push({ label: "Google Ads on high-intent keywords", reason: "Budget best deployed on bottom-funnel search." });
+  else if (budget > 0) priorities.push({ label: "SEO + organic social foundation", reason: "Compound growth beats thin paid spend at this budget." });
+
+  if (/lead|b2b|saas|demo|book/.test(goal + industry)) priorities.push({ label: "LinkedIn thought-leadership + lead magnets", reason: "Matches your B2B / lead-gen goal." });
+  if (/brand|awareness|launch/.test(goal)) priorities.push({ label: "Short-form video + creator partnerships", reason: "Awareness plays need reach, not just conversion." });
+  if (/sale|revenue|ecom|shop|d2c/.test(goal + industry)) priorities.push({ label: "Meta Advantage+ Shopping + email flows", reason: "Ecom scaling formula for your goal." });
+  if (channelSignals === 0 && business.currentChannels.trim()) priorities.push({ label: "Analytics + tracking setup first", reason: "No measurable channel data yet — instrument before spending." });
+  if (audienceLen < 15) priorities.push({ label: "ICP & audience clarity workshop", reason: "Targeting is too broad to price CPL confidently." });
+  if (!priorities.length) priorities.push({ label: "Discovery call to define ICP + goal", reason: "Give us more context and we'll sharpen this." });
+
+  // Recommended plan preview
+  const plan =
+    budget >= 6000 ? { name: "Enterprise", price: "$6,999/mo" } :
+    budget >= 2000 ? { name: "Growth", price: "$3,499/mo" } :
+    { name: "Starter", price: "$1,499/mo" };
+
+  return {
+    budget, bench, completeness, cpl: Math.round(cpl),
+    leadsLow, leadsHigh, roas, revenueLow, revenueHigh,
+    priorities: priorities.slice(0, 4), plan,
+  };
+}
+
+const LiveROIEstimator = ({ business }: { business: Business }) => {
+  const est = computeROI(business);
+  const hasBudget = est.budget > 0;
+  return (
+    <div className="mt-6 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 p-4 md:p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-heading font-semibold leading-tight">Live ROI Estimator</p>
+            <p className="text-[11px] text-muted-foreground">Updates as you answer — powered by {est.bench.label} benchmarks</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Profile</p>
+          <p className="text-xs font-medium">{est.completeness}%</p>
+        </div>
+      </div>
+
+      <Progress value={est.completeness} className="h-1 mb-4" />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <Metric label="Est. Leads / mo" value={hasBudget ? `${est.leadsLow}–${est.leadsHigh}` : "—"} hint={hasBudget ? `CPL ~$${est.cpl}` : "Enter budget"} />
+        <Metric label="Projected ROAS" value={`${est.roas}×`} hint={est.bench.label} />
+        <Metric label="Est. Revenue / mo" value={hasBudget ? `$${(est.revenueLow / 1000).toFixed(1)}k–$${(est.revenueHigh / 1000).toFixed(1)}k` : "—"} hint={hasBudget ? "Based on ROAS band" : "Enter budget"} />
+        <Metric label="Best-fit Plan" value={est.plan.name} hint={est.plan.price} />
+      </div>
+
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Target className="w-3 h-3" /> Priority Recommendations
+        </p>
+        <ul className="space-y-1.5">
+          <AnimatePresence initial={false}>
+            {est.priorities.map((p, i) => (
+              <motion.li
+                key={p.label}
+                initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }}
+                transition={{ duration: 0.18, delay: i * 0.03 }}
+                className="flex items-start gap-2 text-xs"
+              >
+                <ArrowRight className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <span><span className="font-medium text-foreground">{p.label}</span> <span className="text-muted-foreground">— {p.reason}</span></span>
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground mt-3 leading-snug">
+        Estimates are directional industry benchmarks, not guarantees. Generate the full report for a validated strategy.
+      </p>
+    </div>
+  );
+};
+
+const Metric = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+  <div className="rounded-lg bg-card/60 border border-border/60 p-3">
+    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+    <p className="text-base md:text-lg font-heading font-bold bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">{value}</p>
+    {hint && <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>}
+  </div>
+);
+
 const IntakeForm = ({
   business, setBusiness, onSubmit,
 }: { business: Business; setBusiness: (b: Business) => void; onSubmit: () => void }) => {
@@ -328,6 +472,9 @@ const IntakeForm = ({
         <div className="md:col-span-2">{F("goal", "Top Goal (Next 90 Days)", "Generate 100 qualified leads")}</div>
         <div className="md:col-span-2">{F("currentChannels", "Current Marketing Channels", "What are you doing today?", true)}</div>
       </div>
+
+      <LiveROIEstimator business={business} />
+
       <Button onClick={onSubmit} className="w-full mt-6 h-11 bg-gradient-to-br from-primary to-accent text-base">
         <Sparkles className="w-4 h-4 mr-2" /> Consult with AI Employee
       </Button>
