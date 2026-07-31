@@ -181,18 +181,21 @@ Deno.serve(async (req) => {
     for (let attempt = 1; attempt <= 3; attempt++) {
       log(FN_NAME, "ai_call_start", { model: "google/gemini-3-flash-preview", attempt });
       let text: string;
+      let finishReason = "";
       try {
-        text = await withTimeout(
+        const aiResult = await withTimeout(
           generateText({
             model: gateway("google/gemini-3-flash-preview"),
             maxOutputTokens: 16000,
             system: SYSTEM + "\n\nReturn ONLY valid minified JSON matching the requested schema. No markdown fences, no commentary.",
             prompt: attempt === 1 ? PROMPT : `${PROMPT}\n\nYour previous attempt failed with: ${lastFailure}. Return strictly valid JSON this time.`,
             providerOptions: { lovable: { response_format: { type: "json_object" } } },
-          }).then((r) => r.text),
+          }),
           AI_TIMEOUT_MS,
           "AI generation"
         );
+        text = aiResult.text;
+        finishReason = String(aiResult.finishReason ?? "");
       } catch (err) {
         logError(FN_NAME, "ai_call_failed", err, { attempt, elapsedMs: Date.now() - startedAt });
         const msg = err instanceof Error ? err.message : "AI request failed";
@@ -200,7 +203,7 @@ Deno.serve(async (req) => {
         if (/402|payment|credits?/i.test(msg)) return json({ error: "402: AI credits exhausted." }, 402);
         return json({ error: `AI request failed: ${msg}` }, 502);
       }
-      log(FN_NAME, "ai_call_success", { attempt, elapsedMs: Date.now() - startedAt, responseLength: text.length });
+      log(FN_NAME, "ai_call_success", { attempt, elapsedMs: Date.now() - startedAt, responseLength: text.length, finishReason });
 
       let parsed: unknown;
       try {
