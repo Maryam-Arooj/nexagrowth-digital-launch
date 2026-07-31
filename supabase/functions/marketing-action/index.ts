@@ -1,5 +1,17 @@
 import { generateText } from "npm:ai";
-import { createLovableAiGatewayProvider, corsHeaders } from "../_shared/ai-gateway.ts";
+import {
+  createLovableAiGatewayProvider,
+  corsHeaders,
+  getLovableApiKey,
+  ConfigError,
+  ValidationError,
+  log,
+  logError,
+  withTimeout,
+} from "../_shared/ai-gateway.ts";
+
+const FN_NAME = "marketing-action";
+const AI_TIMEOUT_MS = 45_000;
 
 const ACTION_PROMPTS: Record<string, string> = {
   "google-ads": "Generate 5 high-converting Google Ads (Responsive Search Ads) with headlines (max 30 chars each), descriptions (max 90 chars), and target keywords. Use markdown.",
@@ -12,28 +24,63 @@ const ACTION_PROMPTS: Record<string, string> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const startedAt = Date.now();
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   try {
-    const key = Deno.env.get("LOVABLE_API_KEY");
-    if (!key) throw new Error("AI not configured");
-    const { action, business, report } = await req.json();
+    let payload: Record<string, unknown>;
+    try {
+      payload = (await req.json()) ?? {};
+    } catch {
+      throw new ValidationError("Request body must be valid JSON");
+    }
+
+    const action = typeof payload.action === "string" ? payload.action : "";
     const instruction = ACTION_PROMPTS[action];
-    if (!instruction) throw new Error("Unknown action");
+    if (!instruction) throw new ValidationError(`Unknown action "${action}"`);
 
+    const business = payload.business ?? {};
+    const report = payload.report as { executiveSummary?: string } | undefined;
+
+    log(FN_NAME, "request_received", { action, companyName: (business as Record<string, unknown>)?.companyName });
+
+    const key = getLovableApiKey(FN_NAME);
     const gateway = createLovableAiGatewayProvider(key);
-    const { text } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
-      system: "You are NexaGrowth AI — a senior marketing strategist producing client-ready deliverables. Be specific, concrete, and grounded in the business context provided.",
-      prompt: `Business context:\n${JSON.stringify(business, null, 2)}\n\nStrategy context (summary):\n${report?.executiveSummary ?? ""}\n\nTask: ${instruction}`,
-    });
 
-    return new Response(JSON.stringify({ text }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    let text: string;
+    try {
+      text = await withTimeout(
+        generateText({
+          model: gateway("google/gemini-3-flash-preview"),
+          system: "You are NexaGrowth AI — a senior marketing strategist producing client-ready deliverables. Be specific, concrete, and grounded in the business context provided.",
+          prompt: `Business context:\n${JSON.stringify(business, null, 2)}\n\nStrategy context (summary):\n${report?.executiveSummary ?? ""}\n\nTask: ${instruction}`,
+        }).then((r) => r.text),
+        AI_TIMEOUT_MS,
+        "AI generation"
+      );
+    } catch (err) {
+      logError(FN_NAME, "ai_call_failed", err, { action, elapsedMs: Date.now() - startedAt });
+      const msg = err instanceof Error ? err.message : "AI request failed";
+      if (/429|rate.?limit/i.test(msg)) return json({ error: "429: AI rate limit reached. Please try again shortly." }, 429);
+      if (/402|payment|credits?/i.test(msg)) return json({ error: "402: AI credits exhausted." }, 402);
+      return json({ error: `AI request failed: ${msg}` }, 502);
+    }
+
+    log(FN_NAME, "request_success", { action, elapsedMs: Date.now() - startedAt, responseLength: text.length });
+    return json({ text });
   } catch (err) {
+    if (err instanceof ValidationError) {
+      logError(FN_NAME, "validation_error", err);
+      return json({ error: err.message }, 400);
+    }
+    if (err instanceof ConfigError) {
+      logError(FN_NAME, "config_error", err);
+      return json({ error: err.message }, 500);
+    }
+    logError(FN_NAME, "unhandled_error", err, { elapsedMs: Date.now() - startedAt });
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error("marketing-action:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: msg }, 500);
   }
 });

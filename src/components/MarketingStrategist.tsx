@@ -40,6 +40,11 @@ type Report = {
   marketingStrategy: { channel: string; why: string; priority: string }[];
   budgetAllocation: { channel: string; percent: number; amount: number; expectedRoi: string }[];
   actionPlan: { week1: string[]; week2: string[]; week3: string[]; week4: string[] };
+  ninetyDayStrategy?: {
+    month1: { theme: string; keyActions: string[] };
+    month2: { theme: string; keyActions: string[] };
+    month3: { theme: string; keyActions: string[] };
+  };
   seo: {
     primaryKeywords: string[]; secondaryKeywords: string[]; longTailKeywords: string[];
     metaTitle: string; metaDescription: string; blogIdeas: string[]; internalLinking: string[];
@@ -91,7 +96,8 @@ const AUTH = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
 
 export const MarketingStrategist = () => {
   const [open, setOpen] = useState(false);
-  const [stage, setStage] = useState<"intake" | "loading" | "report" | "action">("intake");
+  const [stage, setStage] = useState<"intake" | "loading" | "report" | "action" | "error">("intake");
+  const [errorMsg, setErrorMsg] = useState<string>("");
   const [business, setBusiness] = useState<Business>({
     companyName: "", industry: "", audience: "", budget: "", goal: "", currentChannels: "",
   });
@@ -117,41 +123,75 @@ export const MarketingStrategist = () => {
       return;
     }
     setStage("loading");
+    setErrorMsg("");
+    const startedAt = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
     try {
       const [reportRes, qualRes] = await Promise.all([
         fetch(`${FN_URL}/marketing-report`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: AUTH },
           body: JSON.stringify({ business }),
+          signal: controller.signal,
         }),
         fetch(`${FN_URL}/lead-qualification`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: AUTH },
           body: JSON.stringify({ business }),
+          signal: controller.signal,
+        }).catch((e) => {
+          console.error("lead-qualification request failed", e);
+          return null;
         }),
       ]);
-      const reportData = await reportRes.json();
-      if (!reportRes.ok) throw new Error(reportData.error || "Generation failed");
+
+      const rawReport = await reportRes.text();
+      let reportData: any = null;
+      try {
+        reportData = JSON.parse(rawReport);
+      } catch {
+        console.error("marketing-report non-JSON response", reportRes.status, rawReport.slice(0, 500));
+        throw new Error(`Server returned an unexpected response (status ${reportRes.status})`);
+      }
+      if (!reportRes.ok || !reportData?.report) {
+        console.error("marketing-report failed", reportRes.status, reportData);
+        throw new Error(reportData?.error || `Report generation failed (status ${reportRes.status})`);
+      }
 
       let qual: Qualification | null = null;
-      if (qualRes.ok) {
-        const qd = await qualRes.json();
-        qual = qd.qualification ?? null;
-      } else {
-        console.error("qualification failed");
+      if (qualRes && qualRes.ok) {
+        try {
+          const qd = JSON.parse(await qualRes.text());
+          qual = qd.qualification ?? null;
+        } catch (e) {
+          console.error("lead-qualification parse failed", e);
+        }
+      } else if (qualRes) {
+        console.error("lead-qualification failed with status", qualRes.status);
       }
 
       setReport(reportData.report);
       setQualification(qual);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ business, report: reportData.report, qualification: qual }));
       setStage("report");
+      console.info(
+        `[marketing-report] success for "${reportData.report.companyName}" in ${Date.now() - startedAt}ms`
+      );
       toast.success("Strategy report generated");
     } catch (e: any) {
-      const msg = e?.message || "";
+      const aborted = e?.name === "AbortError";
+      const msg = aborted
+        ? "The AI request timed out after 60 seconds. Please retry."
+        : e?.message || "Failed to generate report";
+      console.error("[marketing-report] error", { message: msg, error: e, elapsedMs: Date.now() - startedAt });
       if (msg.includes("429")) toast.error("Rate limit. Try again shortly.");
       else if (msg.includes("402")) toast.error("AI credits exhausted.");
-      else toast.error("Failed to generate report");
-      setStage("intake");
+      else toast.error(msg);
+      setErrorMsg(msg);
+      setStage("error");
+    } finally {
+      clearTimeout(timer);
     }
   };
 
@@ -270,6 +310,9 @@ export const MarketingStrategist = () => {
               <div className="flex-1 overflow-y-auto">
                 {stage === "intake" && <IntakeForm business={business} setBusiness={setBusiness} onSubmit={generateReport} />}
                 {stage === "loading" && <LoadingView />}
+                {stage === "error" && (
+                  <ErrorView message={errorMsg} onRetry={generateReport} onEdit={() => setStage("intake")} />
+                )}
                 {stage === "report" && report && (
                   <ReportView
                     report={report}
@@ -528,6 +571,27 @@ const LoadingView = () => {
   );
 };
 
+// ============ Error ============
+function ErrorView({ message, onRetry, onEdit }: { message: string; onRetry: () => void; onEdit: () => void }) {
+  return (
+    <div className="p-6 md:p-10 max-w-xl mx-auto text-center">
+      <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
+        <AlertTriangle className="w-6 h-6 text-red-500" />
+      </div>
+      <h3 className="font-heading font-semibold text-lg mb-2">Report generation failed</h3>
+      <p className="text-sm text-muted-foreground mb-6 break-words">{message || "Something went wrong. Please try again."}</p>
+      <div className="flex items-center justify-center gap-2">
+        <Button onClick={onRetry} className="gap-1.5 bg-gradient-to-br from-primary to-accent">
+          <RotateCcw className="w-3.5 h-3.5" /> Retry
+        </Button>
+        <Button variant="outline" onClick={onEdit} className="gap-1.5">
+          <ArrowLeft className="w-3.5 h-3.5" /> Edit details
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ============ Report ============
 const SectionCard = ({
   icon: Icon, title, defaultOpen = true, children,
@@ -726,6 +790,31 @@ const ReportView = ({
           ))}
         </div>
       </SectionCard>
+
+      {/* 90-day strategy */}
+      {report.ninetyDayStrategy && (
+        <SectionCard icon={TrendingUp} title="90-Day Growth Strategy">
+          <div className="grid md:grid-cols-3 gap-3 text-sm">
+            {(["month1", "month2", "month3"] as const).map((m, i) => {
+              const month = report.ninetyDayStrategy?.[m];
+              if (!month) return null;
+              return (
+                <div key={m} className="rounded-lg border border-border p-3">
+                  <p className="text-[11px] uppercase text-primary font-semibold mb-1">Month {i + 1}</p>
+                  <p className="font-medium mb-2">{month.theme}</p>
+                  <ul className="space-y-1.5">
+                    {(month.keyActions || []).map((t, j) => (
+                      <li key={j} className="flex gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" /><span>{t}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      )}
+
+
 
       {/* SEO */}
       <SectionCard icon={Search} title="SEO Recommendations" defaultOpen={false}>
