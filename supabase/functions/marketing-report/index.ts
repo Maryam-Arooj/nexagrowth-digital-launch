@@ -109,12 +109,37 @@ function stripTrailingCommas(text: string): string {
   return text.replace(/,(\s*[}\]])/g, "$1");
 }
 
+/** Closes any unterminated string/array/object so a slightly malformed model reply is still usable. */
+function balanceJson(text: string): string {
+  const stack: string[] = [];
+  let inString = false, escaped = false;
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  let out = text;
+  if (inString) out += '"';
+  while (stack.length) out += stack.pop() === "{" ? "}" : "]";
+  return out;
+}
+
 function parseModelJson(raw: string): unknown {
   const cleaned = extractJson(raw);
   try {
     return JSON.parse(cleaned);
   } catch {
-    return JSON.parse(stripTrailingCommas(cleaned));
+    try {
+      return JSON.parse(stripTrailingCommas(cleaned));
+    } catch {
+      return JSON.parse(balanceJson(stripTrailingCommas(extractJson(raw.replace(/```+/g, "")))));
+    }
   }
 }
 
