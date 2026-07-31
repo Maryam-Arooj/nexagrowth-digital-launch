@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     const PROMPT = `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn a JSON object with EXACTLY these keys: companyName(string), executiveSummary(string), businessAnalysis{model,audience,strengths,currentPosition}, swot{strengths[],weaknesses[],opportunities[],threats[]}, competitorAnalysis{topCompetitors[{name,note}],competitiveAdvantages[],marketGaps[],differentiationStrategy}, marketingStrategy[{channel,why,priority}], budgetAllocation[{channel,percent(number),amount(number),expectedRoi(string)}] (percent sums to 100), actionPlan{week1[],week2[],week3[],week4[]} (detailed week-by-week tasks for the first 30 days), ninetyDayStrategy{month1{theme,keyActions[]},month2{theme,keyActions[]},month3{theme,keyActions[]}} (a 90-day / 3-month marketing roadmap, each month with a strategic theme and 3-6 key actions), seo{primaryKeywords[],secondaryKeywords[],longTailKeywords[],metaTitle,metaDescription,blogIdeas[],internalLinking[]}, contentIdeas{instagramPosts[],reels[],stories[],facebookPosts[],linkedinPosts[],emailCampaigns[]}, kpis{expectedLeads,conversionRate,roas,ctr,trafficGrowth,monthlySales} (ALL SIX kpis values must be strings, e.g. "120-150 leads/mo", "3.5%", "4.2x"), riskAnalysis[{risk,mitigation}], confidence{score(number 0-100),reasoning}, finalRecommendations[] (3-6 concrete next actions this business should take).\n\nCRITICAL: output must be a single valid JSON object. Escape every double quote inside string values. Do not use raw newlines inside strings.`;
 
     let lastFailure = "";
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       log(FN_NAME, "ai_call_start", { model: "google/gemini-3-flash-preview", attempt });
       let text: string;
       try {
@@ -207,7 +207,13 @@ Deno.serve(async (req) => {
         parsed = parseModelJson(text);
       } catch (err) {
         lastFailure = "the response was not valid JSON";
-        logError(FN_NAME, "json_parse_failed", err, { attempt, rawPreview: text.slice(0, 500) });
+        const posMatch = (err instanceof Error ? err.message : "").match(/position (\d+)/);
+        const pos = posMatch ? Number(posMatch[1]) : 0;
+        logError(FN_NAME, "json_parse_failed", err, {
+          attempt,
+          rawPreview: text.slice(0, 300),
+          aroundError: pos ? text.slice(Math.max(0, pos - 200), pos + 200) : undefined,
+        });
         continue;
       }
 
