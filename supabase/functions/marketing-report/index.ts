@@ -133,6 +133,17 @@ function coerceNumericFields(value: unknown): unknown {
   return value;
 }
 
+function coerceKpiStrings(value: unknown): unknown {
+  const root = value as Record<string, unknown> | null;
+  const kpis = root && typeof root === "object" ? (root.kpis as Record<string, unknown> | undefined) : undefined;
+  if (kpis && typeof kpis === "object") {
+    for (const [k, v] of Object.entries(kpis)) {
+      if (typeof v === "number") kpis[k] = String(v);
+    }
+  }
+  return value;
+}
+
 function validateBusiness(body: unknown): { companyName: string; industry: string; [k: string]: unknown } {
   if (!body || typeof body !== "object") throw new ValidationError("business object is required");
   const business = body as Record<string, unknown>;
@@ -164,48 +175,60 @@ Deno.serve(async (req) => {
     const key = getLovableApiKey(FN_NAME);
     const gateway = createLovableAiGatewayProvider(key);
 
-    log(FN_NAME, "ai_call_start", { model: "google/gemini-3-flash-preview" });
-    let text: string;
-    try {
-      text = await withTimeout(
-        generateText({
-          model: gateway("google/gemini-3-flash-preview"),
-          maxOutputTokens: 16000,
-          system: SYSTEM + "\n\nReturn ONLY valid minified JSON matching the requested schema. No markdown fences, no commentary.",
-          prompt: `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn a JSON object with EXACTLY these keys: companyName(string), executiveSummary(string), businessAnalysis{model,audience,strengths,currentPosition}, swot{strengths[],weaknesses[],opportunities[],threats[]}, competitorAnalysis{topCompetitors[{name,note}],competitiveAdvantages[],marketGaps[],differentiationStrategy}, marketingStrategy[{channel,why,priority}], budgetAllocation[{channel,percent(number),amount(number),expectedRoi(string)}] (percent sums to 100), actionPlan{week1[],week2[],week3[],week4[]} (detailed week-by-week tasks for the first 30 days), ninetyDayStrategy{month1{theme,keyActions[]},month2{theme,keyActions[]},month3{theme,keyActions[]}} (a 90-day / 3-month marketing roadmap, each month with a strategic theme and 3-6 key actions), seo{primaryKeywords[],secondaryKeywords[],longTailKeywords[],metaTitle,metaDescription,blogIdeas[],internalLinking[]}, contentIdeas{instagramPosts[],reels[],stories[],facebookPosts[],linkedinPosts[],emailCampaigns[]}, kpis{expectedLeads,conversionRate,roas,ctr,trafficGrowth,monthlySales}, riskAnalysis[{risk,mitigation}], confidence{score(number 0-100),reasoning}, finalRecommendations[] (3-6 concrete next actions this business should take).`,
-        }).then((r) => r.text),
-        AI_TIMEOUT_MS,
-        "AI generation"
-      );
-    } catch (err) {
-      logError(FN_NAME, "ai_call_failed", err, { elapsedMs: Date.now() - startedAt });
-      const msg = err instanceof Error ? err.message : "AI request failed";
-      if (/429|rate.?limit/i.test(msg)) return json({ error: "429: AI rate limit reached. Please try again shortly." }, 429);
-      if (/402|payment|credits?/i.test(msg)) return json({ error: "402: AI credits exhausted." }, 402);
-      return json({ error: `AI request failed: ${msg}` }, 502);
+    const PROMPT = `Generate a complete marketing strategy report for this business:\n\n${JSON.stringify(business, null, 2)}\n\nReturn a JSON object with EXACTLY these keys: companyName(string), executiveSummary(string), businessAnalysis{model,audience,strengths,currentPosition}, swot{strengths[],weaknesses[],opportunities[],threats[]}, competitorAnalysis{topCompetitors[{name,note}],competitiveAdvantages[],marketGaps[],differentiationStrategy}, marketingStrategy[{channel,why,priority}], budgetAllocation[{channel,percent(number),amount(number),expectedRoi(string)}] (percent sums to 100), actionPlan{week1[],week2[],week3[],week4[]} (detailed week-by-week tasks for the first 30 days), ninetyDayStrategy{month1{theme,keyActions[]},month2{theme,keyActions[]},month3{theme,keyActions[]}} (a 90-day / 3-month marketing roadmap, each month with a strategic theme and 3-6 key actions), seo{primaryKeywords[],secondaryKeywords[],longTailKeywords[],metaTitle,metaDescription,blogIdeas[],internalLinking[]}, contentIdeas{instagramPosts[],reels[],stories[],facebookPosts[],linkedinPosts[],emailCampaigns[]}, kpis{expectedLeads,conversionRate,roas,ctr,trafficGrowth,monthlySales} (ALL SIX kpis values must be strings, e.g. "120-150 leads/mo", "3.5%", "4.2x"), riskAnalysis[{risk,mitigation}], confidence{score(number 0-100),reasoning}, finalRecommendations[] (3-6 concrete next actions this business should take).\n\nCRITICAL: output must be a single valid JSON object. Escape every double quote inside string values. Do not use raw newlines inside strings.`;
+
+    let lastFailure = "";
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      log(FN_NAME, "ai_call_start", { model: "google/gemini-3-flash-preview", attempt });
+      let text: string;
+      try {
+        text = await withTimeout(
+          generateText({
+            model: gateway("google/gemini-3-flash-preview"),
+            maxOutputTokens: 16000,
+            system: SYSTEM + "\n\nReturn ONLY valid minified JSON matching the requested schema. No markdown fences, no commentary.",
+            prompt: attempt === 1 ? PROMPT : `${PROMPT}\n\nYour previous attempt failed with: ${lastFailure}. Return strictly valid JSON this time.`,
+            providerOptions: { lovable: { response_format: { type: "json_object" } } },
+          }).then((r) => r.text),
+          AI_TIMEOUT_MS,
+          "AI generation"
+        );
+      } catch (err) {
+        logError(FN_NAME, "ai_call_failed", err, { attempt, elapsedMs: Date.now() - startedAt });
+        const msg = err instanceof Error ? err.message : "AI request failed";
+        if (/429|rate.?limit/i.test(msg)) return json({ error: "429: AI rate limit reached. Please try again shortly." }, 429);
+        if (/402|payment|credits?/i.test(msg)) return json({ error: "402: AI credits exhausted." }, 402);
+        return json({ error: `AI request failed: ${msg}` }, 502);
+      }
+      log(FN_NAME, "ai_call_success", { attempt, elapsedMs: Date.now() - startedAt, responseLength: text.length });
+
+      let parsed: unknown;
+      try {
+        parsed = parseModelJson(text);
+      } catch (err) {
+        lastFailure = "the response was not valid JSON";
+        logError(FN_NAME, "json_parse_failed", err, { attempt, rawPreview: text.slice(0, 500) });
+        continue;
+      }
+
+      parsed = coerceNumericFields(parsed);
+      parsed = coerceKpiStrings(parsed);
+
+      const result = ReportSchema.safeParse(parsed);
+      if (!result.success) {
+        lastFailure = "the JSON did not match the required schema";
+        logError(FN_NAME, "schema_validation_failed", new Error("schema mismatch"), {
+          attempt,
+          issues: JSON.stringify(result.error.issues).slice(0, 1000),
+        });
+        continue;
+      }
+
+      log(FN_NAME, "request_success", { attempt, elapsedMs: Date.now() - startedAt, companyName: result.data.companyName });
+      return json({ report: result.data });
     }
-    log(FN_NAME, "ai_call_success", { elapsedMs: Date.now() - startedAt, responseLength: text.length });
 
-    let parsed: unknown;
-    try {
-      parsed = parseModelJson(text);
-    } catch (err) {
-      logError(FN_NAME, "json_parse_failed", err, { rawPreview: text.slice(0, 500) });
-      return json({ error: "AI returned invalid JSON. Please try again." }, 502);
-    }
-
-    parsed = coerceNumericFields(parsed);
-
-    const result = ReportSchema.safeParse(parsed);
-    if (!result.success) {
-      logError(FN_NAME, "schema_validation_failed", new Error("schema mismatch"), {
-        issues: JSON.stringify(result.error.issues).slice(0, 1000),
-      });
-      return json({ error: "AI response did not match the expected report format. Please retry." }, 502);
-    }
-
-    log(FN_NAME, "request_success", { elapsedMs: Date.now() - startedAt, companyName: result.data.companyName });
-    return json({ report: result.data });
+    return json({ error: `The AI response could not be validated (${lastFailure}). Please retry.` }, 502);
   } catch (err) {
     if (err instanceof ValidationError) {
       logError(FN_NAME, "validation_error", err);
