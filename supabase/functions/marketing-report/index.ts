@@ -255,6 +255,11 @@ Deno.serve(async (req) => {
           attempt,
           issues: JSON.stringify(result.error.issues).slice(0, 1000),
         });
+        // On the final attempt, serve the partial report — the UI renders defensively.
+        if (attempt === 3 && parsed && typeof parsed === "object") {
+          log(FN_NAME, "request_success_partial", { attempt, elapsedMs: Date.now() - startedAt });
+          return json({ report: parsed, partial: true });
+        }
         continue;
       }
 
