@@ -149,7 +149,7 @@ const ThankYou = () => {
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <a href="/#contact">Contact Our Team</a>
+            <Link to="/" state={{ scrollTo: "contact" }}>Contact Our Team</Link>
           </Button>
         </motion.div>
 

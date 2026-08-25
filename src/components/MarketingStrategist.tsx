@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BrainCircuit, X, Loader2, Download, Sparkles, Target, TrendingUp, Users,
@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { PipelineStatus, applyPipelineStageEvent, splitNdjsonLines, type PipelineStageState, type PipelineStageEvent } from "@/components/PipelineStatus";
 
 const STORAGE_KEY = "nexagrowth-strategy-v2";
@@ -1337,6 +1338,21 @@ function generatePDF(report: Report, business: Business) {
 }
 
 // ============ Chat advisor view ============
+
+/**
+ * Extracts the renderable text of one UI message.
+ *
+ * The AI SDK delivers a message as an ordered array of typed `parts`
+ * (text / reasoning / tool calls / files) rather than a single `content` string,
+ * so text parts are concatenated in order and every other part type is ignored.
+ */
+function messageText(msg: { parts?: { type: string; text?: string }[] }): string {
+  return (msg.parts ?? [])
+    .filter((p) => p.type === "text" && typeof p.text === "string")
+    .map((p) => p.text as string)
+    .join("");
+}
+
 const ChatView = ({
   business,
   report,
@@ -1344,16 +1360,44 @@ const ChatView = ({
   business: Business;
   report: Report | null;
 }) => {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: `${FN_URL}/marketing-strategist`,
-    headers: {
-      Authorization: AUTH,
-    },
-    body: {
-      business,
-      reportSummary: report?.executiveSummary || "",
-    },
-  });
+  // Input state is owned by this component: `useChat` no longer manages it.
+  const [input, setInput] = useState("");
+
+  // `useChat` builds its Chat instance once and only rebuilds it when `id`/`chat`
+  // changes — later option objects are ignored. So the transport is created once
+  // too, and the request body is supplied as a function (`body` is a Resolvable,
+  // resolved per request) reading from a ref. That keeps every request in sync with
+  // the current business/report instead of closing over first-render values.
+  const contextRef = useRef({ business, report });
+  contextRef.current = { business, report };
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${FN_URL}/marketing-strategist`,
+        headers: { Authorization: AUTH },
+        body: () => ({
+          business: contextRef.current.business,
+          reportSummary: contextRef.current.report?.executiveSummary || "",
+        }),
+      }),
+    [],
+  );
+
+  const { messages, sendMessage, status, error } = useChat({ transport });
+
+  // 'submitted' = request sent, nothing streaming back yet; 'streaming' = tokens arriving.
+  const isBusy = status === "submitted" || status === "streaming";
+
+  const handleSend = (e: FormEvent) => {
+    // Without preventDefault the browser performs a native form submission, which
+    // reloads the entire SPA and drops the user back on the home page.
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isBusy) return;
+    setInput("");
+    void sendMessage({ text });
+  };
 
   // Automatically scroll to bottom when new messages arrive
   useEffect(() => {
@@ -1364,7 +1408,7 @@ const ChatView = ({
   return (
     <div className="flex flex-col h-[75vh] max-w-4xl mx-auto p-4 md:p-6 bg-card border border-border/40 rounded-xl mt-6 shadow-inner">
       <div className="flex-grow overflow-y-auto pr-2 mb-4 space-y-4 max-h-[60vh]">
-        {messages.filter(m => m.role !== "system").map((msg) => (
+        {messages.filter((m) => m.role !== "system").map((msg) => (
           <div
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
@@ -1377,12 +1421,12 @@ const ChatView = ({
               }`}
             >
               <div className="prose prose-sm prose-invert max-w-none prose-headings:font-heading prose-p:leading-relaxed text-foreground">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <ReactMarkdown>{messageText(msg)}</ReactMarkdown>
               </div>
             </div>
           </div>
         ))}
-        {isLoading && (
+        {isBusy && (
           <div className="flex justify-start">
             <div className="bg-secondary border border-border rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -1390,18 +1434,29 @@ const ChatView = ({
             </div>
           </div>
         )}
+        {status === "error" && (
+          <div className="flex justify-start">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-2xl rounded-tl-none px-4 py-3 flex items-start gap-2 max-w-[85%]">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <span className="text-xs text-destructive">
+                {error?.message || "The advisor could not respond. Please try again."}
+              </span>
+            </div>
+          </div>
+        )}
         <div id="chat-scroll-anchor" />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 bg-background p-2 rounded-xl border border-border">
+      <form onSubmit={handleSend} className="flex gap-2 bg-background p-2 rounded-xl border border-border">
         <input
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a question about your marketing strategy..."
           className="flex-1 bg-transparent px-3 text-sm focus:outline-none"
-          disabled={isLoading}
+          disabled={isBusy}
+          aria-label="Message the marketing advisor"
         />
-        <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="bg-gradient-to-br from-primary to-accent shrink-0">
+        <Button type="submit" size="icon" disabled={isBusy || !input.trim()} className="bg-gradient-to-br from-primary to-accent shrink-0">
           <Send className="w-4 h-4 text-white" />
         </Button>
       </form>

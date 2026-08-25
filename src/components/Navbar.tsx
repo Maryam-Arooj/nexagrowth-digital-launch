@@ -1,24 +1,37 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type MouseEvent as ReactMouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, ShoppingCart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Section ids on the home page. Hash anchors only exist on "/", so links are
+// modelled as ids and resolved by the click handler rather than as raw hrefs.
 const navLinks = [
-  { label: "About", href: "/#about" },
-  { label: "Services", href: "/#services" },
-  { label: "Work", href: "/#work" },
-  { label: "Pricing", href: "/#pricing" },
-  { label: "FAQ", href: "/#faq" },
-  { label: "Contact", href: "/#contact" },
+  { label: "About", id: "about" },
+  { label: "Services", id: "services" },
+  { label: "Work", id: "work" },
+  { label: "Pricing", id: "pricing" },
+  { label: "FAQ", id: "faq" },
+  { label: "Contact", id: "contact" },
 ];
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/** True for clicks the browser should handle itself (new tab, new window, etc.). */
+function isModifiedClick(e: ReactMouseEvent) {
+  return e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+}
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { itemCount } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -26,10 +39,41 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleNavClick = (href: string) => {
+  // Arriving at "/" from another route with a pending scroll target: the router
+  // carries the id in location.state, which survives the navigation and is read by
+  // whichever Navbar instance mounts on the home page. Two rAFs let the lazy-loaded
+  // Index page mount and lay out before the target's position is measured.
+  useEffect(() => {
+    const target = (location.state as { scrollTo?: string } | null)?.scrollTo;
+    if (location.pathname !== "/" || !target) return;
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        scrollToSection(target);
+        // Clear the state so browser back/forward doesn't re-trigger the scroll.
+        navigate("/", { replace: true, state: null });
+      }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [location, navigate]);
+
+  /**
+   * Handles a section link. The anchor keeps a real href so middle-click,
+   * ctrl/cmd-click and "copy link address" still work; only an unmodified left
+   * click is intercepted. These were previously plain anchors that triggered a full
+   * browser navigation (and, off the home page, an explicit `window.location.href`
+   * assignment) — reloading the whole SPA and wiping the in-memory cart.
+   */
+  const handleNavClick = (e: ReactMouseEvent, id: string) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
     setMobileOpen(false);
-    if (location.pathname !== "/" && href.startsWith("/#")) {
-      window.location.href = href;
+
+    if (location.pathname === "/") {
+      scrollToSection(id);
+      // Keep the address bar in step without performing a navigation.
+      window.history.replaceState(null, "", `/#${id}`);
+    } else {
+      navigate("/", { state: { scrollTo: id } });
     }
   };
 
@@ -49,9 +93,9 @@ const Navbar = () => {
         <div className="hidden md:flex items-center gap-7">
           {navLinks.map((link) => (
             <a
-              key={link.href}
-              href={link.href}
-              onClick={() => handleNavClick(link.href)}
+              key={link.id}
+              href={`/#${link.id}`}
+              onClick={(e) => handleNavClick(e, link.id)}
               className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               {link.label}
@@ -66,7 +110,7 @@ const Navbar = () => {
             )}
           </Link>
           <Button size="sm" className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-xs" asChild>
-            <a href="/#contact">Get Free Audit</a>
+            <a href="/#contact" onClick={(e) => handleNavClick(e, "contact")}>Get Free Audit</a>
           </Button>
         </div>
 
@@ -79,7 +123,13 @@ const Navbar = () => {
               </span>
             )}
           </Link>
-          <button className="text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button
+            type="button"
+            className="text-foreground"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
@@ -96,16 +146,16 @@ const Navbar = () => {
             <div className="flex flex-col px-4 py-4 gap-0.5">
               {navLinks.map((link) => (
                 <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => handleNavClick(link.href)}
+                  key={link.id}
+                  href={`/#${link.id}`}
+                  onClick={(e) => handleNavClick(e, link.id)}
                   className="text-sm text-muted-foreground hover:text-foreground py-2.5 px-3 rounded-lg hover:bg-secondary transition-colors"
                 >
                   {link.label}
                 </a>
               ))}
               <Button size="sm" className="mt-3 bg-gradient-to-r from-primary to-accent" asChild>
-                <a href="/#contact" onClick={() => setMobileOpen(false)}>Get Free Audit</a>
+                <a href="/#contact" onClick={(e) => handleNavClick(e, "contact")}>Get Free Audit</a>
               </Button>
             </div>
           </motion.div>
