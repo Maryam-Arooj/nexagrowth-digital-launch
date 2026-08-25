@@ -1,0 +1,904 @@
+[
+  {
+    "input": {
+      "companyName": "Acme",
+      "industry": "B2B SaaS",
+      "audience": "SMB founders",
+      "budget": "$8,000",
+      "goal": "scale revenue fast",
+      "currentChannels": "Google Ads, SEO, LinkedIn"
+    },
+    "classify": {
+      "category": "saas",
+      "categoryLabel": "B2B SaaS / Software",
+      "matched": true,
+      "allowedChannels": [
+        "SEO",
+        "Google Search Ads",
+        "LinkedIn Ads",
+        "Content Marketing",
+        "Lead Nurturing / Email Sequences",
+        "Webinars & Product Demos"
+      ]
+    },
+    "leadScore": {
+      "score": 93,
+      "tier": "Priority",
+      "reasoning": "93/100 (Priority) — Budget fit +25, Business fit +20, Growth potential +20, Marketing maturity +20, Goal urgency +8.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 25,
+          "max": 25,
+          "note": "Budget ~$8,000/mo supports full-funnel investment"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: B2B SaaS / Software, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 20,
+          "max": 20,
+          "note": "Actively running 3+ channels — marketing-savvy, sales-ready"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 8,
+          "max": 15,
+          "note": "Goal provided without explicit urgency language"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Shopy",
+      "industry": "D2C apparel ecommerce",
+      "audience": "Gen Z",
+      "budget": "$3,000 - $5,000",
+      "goal": "double sales this quarter",
+      "currentChannels": "Instagram, TikTok"
+    },
+    "classify": {
+      "category": "ecommerce",
+      "categoryLabel": "D2C / E-commerce",
+      "matched": true,
+      "allowedChannels": [
+        "Meta Ads (Facebook/Instagram)",
+        "TikTok Ads",
+        "Google Shopping",
+        "Email/SMS Retention Marketing",
+        "Conversion Rate Optimization (CRO)",
+        "Influencer/UGC Content"
+      ]
+    },
+    "leadScore": {
+      "score": 92,
+      "tier": "Priority",
+      "reasoning": "92/100 (Priority) — Budget fit +20, Business fit +20, Growth potential +20, Marketing maturity +17, Goal urgency +15.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 20,
+          "max": 25,
+          "note": "Budget ~$4,000/mo supports a multi-channel plan"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: D2C / E-commerce, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 17,
+          "max": 20,
+          "note": "Actively running 2 identifiable channels"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 15,
+          "max": 15,
+          "note": "Goal language signals time pressure"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Dental",
+      "industry": "local dentist clinic",
+      "audience": "families",
+      "budget": "$1,200",
+      "goal": "maintain steady bookings",
+      "currentChannels": "Facebook"
+    },
+    "classify": {
+      "category": "local",
+      "categoryLabel": "Local / Brick-and-Mortar Business",
+      "matched": true,
+      "allowedChannels": [
+        "Local SEO",
+        "Google Business Profile Optimization",
+        "Geo-targeted Local Ads",
+        "Review & Reputation Management",
+        "Community & Social Presence"
+      ]
+    },
+    "leadScore": {
+      "score": 60,
+      "tier": "Warm",
+      "reasoning": "60/100 (Warm) — Budget fit +14, Business fit +20, Growth potential +6, Marketing maturity +12, Goal urgency +8.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 14,
+          "max": 25,
+          "note": "Budget ~$1,200/mo fits a focused single-channel plan"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: Local / Brick-and-Mortar Business, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 6,
+          "max": 20,
+          "note": "Goal signals maintenance rather than growth"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 12,
+          "max": 20,
+          "note": "Actively running 1 identifiable channel"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 8,
+          "max": 15,
+          "note": "Goal provided without explicit urgency language"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Consult",
+      "industry": "marketing agency",
+      "audience": "startups",
+      "budget": "$500",
+      "goal": "",
+      "currentChannels": ""
+    },
+    "classify": {
+      "category": "agency",
+      "categoryLabel": "Agency / Professional Services",
+      "matched": true,
+      "allowedChannels": [
+        "SEO",
+        "Content Marketing",
+        "LinkedIn",
+        "Email Marketing",
+        "Referral & Partnership Programs"
+      ]
+    },
+    "leadScore": {
+      "score": 33,
+      "tier": "Cold",
+      "reasoning": "33/100 (Cold) — Budget fit +8, Business fit +20, Growth potential +0, Marketing maturity +5, Goal urgency +0.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 8,
+          "max": 25,
+          "note": "Budget ~$500/mo is limited"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: Agency / Professional Services, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 0,
+          "max": 20,
+          "note": "No goal provided"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 5,
+          "max": 20,
+          "note": "No current channels described (greenfield — lower readiness signal)"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 0,
+          "max": 15,
+          "note": "No goal provided"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 60,
+      "reasoning": "Based on 3/5 stated inputs. Missing: Current channels provided, Goal provided. Recommendations for missing fields are marked as inference, not fact.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": false
+        },
+        {
+          "label": "Goal provided",
+          "met": false
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Mystery",
+      "industry": "underwater basket weaving",
+      "audience": "",
+      "budget": "",
+      "goal": "urgent need to grow now",
+      "currentChannels": "carrier pigeon"
+    },
+    "classify": {
+      "category": "other",
+      "categoryLabel": "underwater basket weaving",
+      "matched": false,
+      "allowedChannels": [
+        "SEO",
+        "Google Ads",
+        "Social Media Marketing",
+        "Email Marketing"
+      ]
+    },
+    "leadScore": {
+      "score": 53,
+      "tier": "Warm",
+      "reasoning": "53/100 (Warm) — Budget fit +0, Business fit +10, Growth potential +20, Marketing maturity +8, Goal urgency +15.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 0,
+          "max": 25,
+          "note": "No budget provided"
+        },
+        {
+          "label": "Business fit",
+          "points": 10,
+          "max": 20,
+          "note": "Industry provided but doesn't map to a well-defined category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 8,
+          "max": 20,
+          "note": "Channels described but not clearly identifiable"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 15,
+          "max": 15,
+          "note": "Goal language signals time pressure"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 60,
+      "reasoning": "Based on 3/5 stated inputs. Missing: Budget provided, Target audience provided. Recommendations for missing fields are marked as inference, not fact.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": false
+        },
+        {
+          "label": "Target audience provided",
+          "met": false
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Empty",
+      "industry": "x",
+      "audience": "",
+      "budget": "",
+      "goal": "",
+      "currentChannels": ""
+    },
+    "classify": {
+      "category": "other",
+      "categoryLabel": "x",
+      "matched": false,
+      "allowedChannels": [
+        "SEO",
+        "Google Ads",
+        "Social Media Marketing",
+        "Email Marketing"
+      ]
+    },
+    "leadScore": {
+      "score": 15,
+      "tier": "Cold",
+      "reasoning": "15/100 (Cold) — Budget fit +0, Business fit +10, Growth potential +0, Marketing maturity +5, Goal urgency +0.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 0,
+          "max": 25,
+          "note": "No budget provided"
+        },
+        {
+          "label": "Business fit",
+          "points": 10,
+          "max": 20,
+          "note": "Industry provided but doesn't map to a well-defined category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 0,
+          "max": 20,
+          "note": "No goal provided"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 5,
+          "max": 20,
+          "note": "No current channels described (greenfield — lower readiness signal)"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 0,
+          "max": 15,
+          "note": "No goal provided"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 20,
+      "reasoning": "Based on 1/5 stated inputs. Missing: Budget provided, Target audience provided, Current channels provided, Goal provided. Recommendations for missing fields are marked as inference, not fact.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": false
+        },
+        {
+          "label": "Target audience provided",
+          "met": false
+        },
+        {
+          "label": "Current channels provided",
+          "met": false
+        },
+        {
+          "label": "Goal provided",
+          "met": false
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Big",
+      "industry": "SaaS platform",
+      "audience": "enterprise",
+      "budget": "$25,000/mo",
+      "goal": "expand into new market immediately",
+      "currentChannels": "SEO, email, content, referral, PR, affiliate"
+    },
+    "classify": {
+      "category": "saas",
+      "categoryLabel": "B2B SaaS / Software",
+      "matched": true,
+      "allowedChannels": [
+        "SEO",
+        "Google Search Ads",
+        "LinkedIn Ads",
+        "Content Marketing",
+        "Lead Nurturing / Email Sequences",
+        "Webinars & Product Demos"
+      ]
+    },
+    "leadScore": {
+      "score": 100,
+      "tier": "Priority",
+      "reasoning": "100/100 (Priority) — Budget fit +25, Business fit +20, Growth potential +20, Marketing maturity +20, Goal urgency +15.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 25,
+          "max": 25,
+          "note": "Budget ~$25,000/mo supports full-funnel investment"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: B2B SaaS / Software, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 20,
+          "max": 20,
+          "note": "Actively running 6+ channels — marketing-savvy, sales-ready"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 15,
+          "max": 15,
+          "note": "Goal language signals time pressure"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Mid",
+      "industry": "online store shopify",
+      "audience": "US shoppers",
+      "budget": "$2,000",
+      "goal": "increase conversions",
+      "currentChannels": "email"
+    },
+    "classify": {
+      "category": "ecommerce",
+      "categoryLabel": "D2C / E-commerce",
+      "matched": true,
+      "allowedChannels": [
+        "Meta Ads (Facebook/Instagram)",
+        "TikTok Ads",
+        "Google Shopping",
+        "Email/SMS Retention Marketing",
+        "Conversion Rate Optimization (CRO)",
+        "Influencer/UGC Content"
+      ]
+    },
+    "leadScore": {
+      "score": 74,
+      "tier": "Hot",
+      "reasoning": "74/100 (Hot) — Budget fit +14, Business fit +20, Growth potential +20, Marketing maturity +12, Goal urgency +8.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 14,
+          "max": 25,
+          "note": "Budget ~$2,000/mo fits a focused single-channel plan"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: D2C / E-commerce, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 12,
+          "max": 20,
+          "note": "Actively running 1 identifiable channel"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 8,
+          "max": 15,
+          "note": "Goal provided without explicit urgency language"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Vague",
+      "industry": "technology",
+      "audience": "people",
+      "budget": "about 900 dollars",
+      "goal": "be better",
+      "currentChannels": "some social media"
+    },
+    "classify": {
+      "category": "other",
+      "categoryLabel": "technology",
+      "matched": false,
+      "allowedChannels": [
+        "SEO",
+        "Google Ads",
+        "Social Media Marketing",
+        "Email Marketing"
+      ]
+    },
+    "leadScore": {
+      "score": 46,
+      "tier": "Warm",
+      "reasoning": "46/100 (Warm) — Budget fit +8, Business fit +10, Growth potential +12, Marketing maturity +8, Goal urgency +8.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 8,
+          "max": 25,
+          "note": "Budget ~$900/mo is limited"
+        },
+        {
+          "label": "Business fit",
+          "points": 10,
+          "max": 20,
+          "note": "Industry provided but doesn't map to a well-defined category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 12,
+          "max": 20,
+          "note": "Goal provided without a clear growth/maintenance signal"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 8,
+          "max": 20,
+          "note": "Channels described but not clearly identifiable"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 8,
+          "max": 15,
+          "note": "Goal provided without explicit urgency language"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  },
+  {
+    "input": {
+      "companyName": "Range",
+      "industry": "B2B software",
+      "audience": "CTOs",
+      "budget": "$4,000 to $6,000",
+      "goal": "launch new product asap",
+      "currentChannels": "Google Ads, blog"
+    },
+    "classify": {
+      "category": "saas",
+      "categoryLabel": "B2B SaaS / Software",
+      "matched": true,
+      "allowedChannels": [
+        "SEO",
+        "Google Search Ads",
+        "LinkedIn Ads",
+        "Content Marketing",
+        "Lead Nurturing / Email Sequences",
+        "Webinars & Product Demos"
+      ]
+    },
+    "leadScore": {
+      "score": 92,
+      "tier": "Priority",
+      "reasoning": "92/100 (Priority) — Budget fit +20, Business fit +20, Growth potential +20, Marketing maturity +17, Goal urgency +15.",
+      "breakdown": [
+        {
+          "label": "Budget fit",
+          "points": 20,
+          "max": 25,
+          "note": "Budget ~$5,000/mo supports a multi-channel plan"
+        },
+        {
+          "label": "Business fit",
+          "points": 20,
+          "max": 20,
+          "note": "Clear fit: B2B SaaS / Software, a serviceable category"
+        },
+        {
+          "label": "Growth potential",
+          "points": 20,
+          "max": 20,
+          "note": "Goal signals active growth ambition"
+        },
+        {
+          "label": "Marketing maturity",
+          "points": 17,
+          "max": 20,
+          "note": "Actively running 2 identifiable channels"
+        },
+        {
+          "label": "Goal urgency",
+          "points": 15,
+          "max": 15,
+          "note": "Goal language signals time pressure"
+        }
+      ]
+    },
+    "confidence": {
+      "score": 100,
+      "reasoning": "All available business inputs were provided — recommendations are grounded in complete stated information.",
+      "checklist": [
+        {
+          "label": "Industry provided",
+          "met": true
+        },
+        {
+          "label": "Budget provided",
+          "met": true
+        },
+        {
+          "label": "Target audience provided",
+          "met": true
+        },
+        {
+          "label": "Current channels provided",
+          "met": true
+        },
+        {
+          "label": "Goal provided",
+          "met": true
+        },
+        {
+          "label": "Live analytics not connected (report is based on stated inputs only)",
+          "met": false,
+          "caveat": true
+        }
+      ]
+    }
+  }
+]
