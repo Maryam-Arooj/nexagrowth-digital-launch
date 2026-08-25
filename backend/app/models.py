@@ -1,13 +1,125 @@
-"""SQLAlchemy ORM models.
+"""SQLAlchemy ORM models — a faithful port of the Supabase schema.
 
-Phase 2 defines only the declarative ``Base`` (re-exported from ``app.db``) so that
-Alembic has a metadata target. The five tables — leads, marketing_reports,
-generated_content, orders, order_items — are added in Phase 3, mirroring the
-schema the Supabase migrations defined.
+Every column mirrors ``supabase/migrations/*.sql`` exactly: same names, same types,
+same nullability, same defaults, same foreign key. Nothing was "improved" during the
+port, because the frontend already sends these exact field names and any rename
+would silently break a form.
+
+What is deliberately **not** ported: the seven Row Level Security policies. RLS
+existed only because the browser talked straight to PostgreSQL over PostgREST. With
+FastAPI in front, the browser never touches the database — the API boundary does the
+job RLS was doing. That also closes the old "anyone can SELECT every visitor's
+report" exposure, simply by not offering such a route.
 """
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import ForeignKey, Numeric, Text, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db import Base
 
-__all__ = ["Base"]
+# `gen_random_uuid()` is built into PostgreSQL 13+. On 12 or older, enable pgcrypto.
+_UUID_PK = text("gen_random_uuid()")
+# Matches the original `timezone('utc'::text, now())` default, so timestamps keep
+# landing in UTC regardless of the server's local timezone setting.
+_UTC_NOW = text("timezone('utc'::text, now())")
+
+
+class Lead(Base):
+    """Contact-form and newsletter submissions.
+
+    Written by ``Contact.tsx`` (full form) and ``CTASection.tsx`` (newsletter, which
+    derives ``name`` from the email prefix and sends a fixed ``goals`` string).
+    """
+
+    __tablename__ = "leads"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    website: Mapped[str | None] = mapped_column(Text, nullable=True)
+    goals: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MarketingReport(Base):
+    """A generated AI strategy report plus the intake it was generated from."""
+
+    __tablename__ = "marketing_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    company_name: Mapped[str] = mapped_column(Text, nullable=False)
+    business_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    report_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class GeneratedContent(Base):
+    """A saved "Next Action" deliverable (ad copy, captions, SEO keywords, ...)."""
+
+    __tablename__ = "generated_content"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    company_name: Mapped[str] = mapped_column(Text, nullable=False)
+    action_type: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Order(Base):
+    """A checkout submission.
+
+    ``status`` is kept for schema parity, but with Stripe removed there is no payment
+    processor to move it past ``'pending'``.
+    """
+
+    __tablename__ = "orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    customer_name: Mapped[str] = mapped_column(Text, nullable=False)
+    customer_email: Mapped[str] = mapped_column(Text, nullable=False)
+    company: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_method: Mapped[str] = mapped_column(Text, nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"), nullable=False)
+
+    items: Mapped[list["OrderItem"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class OrderItem(Base):
+    """One plan line on an order. Deleted with its parent order."""
+
+    __tablename__ = "order_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=True
+    )
+    plan_name: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+
+    order: Mapped[Order | None] = relationship(back_populates="items")
+
+
+__all__ = ["Base", "Lead", "MarketingReport", "GeneratedContent", "Order", "OrderItem"]
