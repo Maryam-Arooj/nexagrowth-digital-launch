@@ -105,11 +105,17 @@ VITE_SUPABASE_PROJECT_ID="<your-project-ref>"
 **Edge functions** — copy `supabase/functions/.env.example` to `supabase/functions/.env` for local development, or set them as Supabase secrets for a deployed project:
 
 ```
-GEMINI_API_KEY=       # free key from https://aistudio.google.com/apikey — no credit card needed
-LOVABLE_API_KEY=      # only if you want to use Lovable's paid AI Gateway instead; leave empty otherwise
+GEMINI_API_KEY=       # REQUIRED. Free key from https://aistudio.google.com/apikey — no credit card needed
+GEMINI_MODEL=         # optional. Defaults to gemini-2.5-flash. Use gemini-2.5-flash-lite for more daily headroom
+LOVABLE_API_KEY=      # optional, PAID (Lovable credits). Ignored unless ALLOW_LOVABLE_AI=true is also set
+ALLOW_LOVABLE_AI=     # optional. Set to "true" only to deliberately opt into paid Lovable usage
 ```
 
-The AI provider is chosen automatically at request time: `LOVABLE_API_KEY` is checked first (so a Lovable Cloud deployment works unchanged), then `GEMINI_API_KEY` (so anyone self‑hosting can run the AI features for free).
+The AI provider is chosen at request time and **Gemini always wins**. `GEMINI_API_KEY` calls Google's API directly and is free. The Lovable AI Gateway is billed against Lovable credits — and because Lovable Cloud auto‑provisions `LOVABLE_API_KEY`, treating its presence as a fallback would spend money silently — so it runs only when `ALLOW_LOVABLE_AI=true` is explicitly set. Without a Gemini key the functions return a clear configuration error instead of quietly switching to a paid service.
+
+The model id is read from `GEMINI_MODEL`, defaulting to `gemini-2.5-flash` (free tier: 10 RPM / 250 RPD). One report costs 4 AI calls, so roughly 62 reports/day; set `GEMINI_MODEL=gemini-2.5-flash-lite` for ~250/day. Keeping the model id in configuration is deliberate — the project was previously pinned in code to `gemini-2.0-flash`, which Google retired on 1 June 2026.
+
+> **Do not enable billing on the Google Cloud project holding your Gemini key.** Unlike most Google services, enabling billing removes the Gemini free tier from that project entirely.
 
 For Stripe payments, also set (as Supabase secrets, never in the frontend `.env`):
 
@@ -187,7 +193,7 @@ bunx vitest run -t "test name"                # run tests matching a name
 - The frontend is a static Vite build (`bun run build` → `dist/`) deployable to any static host (Vercel, Netlify, Lovable, etc.).
 - Edge functions deploy independently via the Supabase CLI — they are **not** bundled by Vite.
 - Configure the Stripe webhook endpoint (in the Stripe dashboard) to point at your deployed `stripe-webhook` function URL, listening for the `checkout.session.completed` event.
-- Without `LOVABLE_API_KEY` or `GEMINI_API_KEY` set as a Supabase secret, the AI Employee will return a clear "AI service is not configured" error instead of failing silently.
+- Without `GEMINI_API_KEY` set as a Supabase secret, the AI Employee returns a clear "AI service is not configured" error instead of failing silently — and never silently falls back to the paid Lovable gateway.
 
 ## 8. Further reading
 

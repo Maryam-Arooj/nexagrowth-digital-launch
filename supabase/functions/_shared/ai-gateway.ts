@@ -18,28 +18,6 @@ export const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-/**
- * Reads and validates the AI gateway API key from the environment.
- * Centralized so every function surfaces the exact same, actionable error
- * (and the exact same log line) when the secret hasn't been configured for
- * this deployment — this is the #1 cause of "AI not configured" failures
- * when the project is deployed outside of Lovable Cloud, since
- * LOVABLE_API_KEY is normally auto-provisioned there and has to be set
- * manually anywhere else (`supabase secrets set LOVABLE_API_KEY=...`).
- */
-export function getLovableApiKey(fnName: string): string {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key || !key.trim()) {
-    console.error(
-      `[${fnName}] Missing LOVABLE_API_KEY secret. Set it with: supabase secrets set LOVABLE_API_KEY=<key> (or add it in Supabase Dashboard → Edge Functions → Secrets).`
-    );
-    throw new ConfigError(
-      "AI service is not configured on the server (missing LOVABLE_API_KEY). Contact the site admin."
-    );
-  }
-  return key;
-}
-
 export type AiProvider = "lovable" | "gemini-direct";
 
 /** A resolved model instance ready to hand to generateText/streamText, plus which provider was used. */
@@ -49,40 +27,74 @@ export interface AiModelHandle {
 }
 
 /**
- * Picks an AI provider for this call — no code changes needed to switch between them,
- * just which secret is set:
+ * The Gemini model used for every direct-Gemini call.
  *
- *   1. LOVABLE_API_KEY — Lovable AI Gateway. Auto-provisioned when this project runs
- *      inside Lovable Cloud; billed against the workspace's Lovable credits.
- *   2. GEMINI_API_KEY  — Google's own Gemini API, called directly (no Lovable involved,
- *      no Lovable billing). Get a free key with no credit card at
- *      https://aistudio.google.com/apikey and set it as a Supabase secret
- *      (`supabase secrets set GEMINI_API_KEY=...`) or, for local dev, in
- *      `supabase/functions/.env`.
+ * Overridable with the `GEMINI_MODEL` secret so a future model retirement is a
+ * config change, not a code change — this project was previously pinned to
+ * `gemini-2.0-flash`, which Google shut down on 1 June 2026, silently breaking
+ * every AI stage in the pipeline.
  *
- * LOVABLE_API_KEY is checked first so a Lovable Cloud deployment behaves exactly as
- * before; GEMINI_API_KEY is the path for running this project anywhere else for free.
+ * Default: `gemini-2.5-flash` — a current, stable, free-tier model.
+ * Free-tier limits at time of writing: 10 RPM / 250k TPM / 250 RPD.
+ * One report costs 4 AI calls, so ~62 reports/day.
+ *
+ * If you need more daily headroom, set GEMINI_MODEL=gemini-2.5-flash-lite
+ * (15 RPM / 1,000 RPD -> ~250 reports/day) at slightly lower output quality.
+ *
+ * Do NOT switch to Gemini 3.5 Flash: it is not a free-tier model.
+ */
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
+/**
+ * Picks an AI provider for this call.
+ *
+ * **Gemini is always preferred.** `GEMINI_API_KEY` is Google's own API, called
+ * directly, and is free (no credit card): https://aistudio.google.com/apikey
+ *
+ * The Lovable AI Gateway is billed against Lovable workspace credits, and Lovable
+ * Cloud *auto-provisions* `LOVABLE_API_KEY` — so treating its mere presence as a
+ * fallback would silently spend money. It is therefore used only when explicitly
+ * opted into with `ALLOW_LOVABLE_AI=true`. Without that flag, a missing Gemini key
+ * is a hard configuration error, never a quiet downgrade to a paid service.
  */
 export function getAiModel(fnName: string): AiModelHandle {
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  if (geminiKey && geminiKey.trim()) {
+    const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
+    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
+    return { provider: "gemini-direct", model: google(modelId) };
+  }
+
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (lovableKey && lovableKey.trim()) {
+  const lovableAllowed = (Deno.env.get("ALLOW_LOVABLE_AI") ?? "").trim().toLowerCase() === "true";
+
+  if (lovableKey && lovableKey.trim() && lovableAllowed) {
+    console.warn(
+      `[${fnName}] Using the Lovable AI Gateway (ALLOW_LOVABLE_AI=true). This is billed against Lovable credits, not the free Gemini tier.`
+    );
     const gateway = createLovableAiGatewayProvider(lovableKey);
     return { provider: "lovable", model: gateway("google/gemini-3-flash-preview") };
   }
 
-  const geminiKey = Deno.env.get("GEMINI_API_KEY");
-  if (geminiKey && geminiKey.trim()) {
-    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    return { provider: "gemini-direct", model: google("gemini-2.0-flash") };
+  if (lovableKey && lovableKey.trim() && !lovableAllowed) {
+    console.error(
+      `[${fnName}] GEMINI_API_KEY is not set. LOVABLE_API_KEY is present but the Lovable gateway is ` +
+        `billed against Lovable credits, so it is NOT used automatically. Set GEMINI_API_KEY (free, no ` +
+        `credit card: https://aistudio.google.com/apikey), or set ALLOW_LOVABLE_AI=true to deliberately ` +
+        `opt into paid Lovable usage.`
+    );
+    throw new ConfigError(
+      "AI service is not configured on the server: GEMINI_API_KEY is missing. Contact the site admin."
+    );
   }
 
   console.error(
-    `[${fnName}] No AI key configured. Set ONE of: LOVABLE_API_KEY (Lovable Cloud) or ` +
-      `GEMINI_API_KEY (free key, no credit card: https://aistudio.google.com/apikey) as a ` +
-      `Supabase Edge Function secret, or in supabase/functions/.env for local dev.`
+    `[${fnName}] No AI key configured. Set GEMINI_API_KEY (free key, no credit card: ` +
+      `https://aistudio.google.com/apikey) as a Supabase Edge Function secret ` +
+      `(\`supabase secrets set GEMINI_API_KEY=...\`), or in supabase/functions/.env for local dev.`
   );
   throw new ConfigError(
-    "AI service is not configured on the server (missing LOVABLE_API_KEY or GEMINI_API_KEY). Contact the site admin."
+    "AI service is not configured on the server (missing GEMINI_API_KEY). Contact the site admin."
   );
 }
 

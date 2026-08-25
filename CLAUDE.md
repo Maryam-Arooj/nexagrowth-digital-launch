@@ -33,7 +33,7 @@ Edge functions live under `supabase/functions/*` and are deployed separately fro
 ```bash
 supabase functions serve                 # serve all functions locally
 supabase functions deploy <name>          # deploy a single function
-supabase secrets set GEMINI_API_KEY=...   # or LOVABLE_API_KEY — see AI provider section below
+supabase secrets set GEMINI_API_KEY=...   # required — see AI provider section below
 ```
 
 Local function secrets go in `supabase/functions/.env` (copy from `supabase/functions/.env.example`; gitignored).
@@ -74,7 +74,7 @@ This is the most complex part of the codebase, split across one large frontend c
 
 - **`supabase/functions/marketing-strategist/`** — the open-ended chat endpoint; streams a response (`streamText` → `toUIMessageStreamResponse`) using a detailed system prompt that defines the AI's persona, output structure, and boundaries (redirects off-topic questions, never invents case studies).
 
-- **`supabase/functions/_shared/ai-gateway.ts`** — shared plumbing for every function: `getAiModel()` picks the LLM provider at call time (checks `LOVABLE_API_KEY` first — Lovable's AI Gateway, auto-provisioned in Lovable Cloud — then falls back to `GEMINI_API_KEY` for direct, free Gemini access when self-hosting outside Lovable), plus `corsHeaders`, `ConfigError`/`ValidationError` (mapped to 500/400 respectively by each function), structured `log`/`logError`, and `withTimeout`. **When adding a new edge function that calls the LLM, use `getAiModel()` rather than hardcoding a provider** so both deployment paths keep working.
+- **`supabase/functions/_shared/ai-gateway.ts`** — shared plumbing for every function: `getAiModel()` picks the LLM provider at call time. **`GEMINI_API_KEY` always wins** (Google's own API, free, no credit card). The Lovable AI Gateway is billed against Lovable credits and Lovable Cloud *auto-provisions* `LOVABLE_API_KEY`, so its mere presence must never trigger spend: it is used only when `ALLOW_LOVABLE_AI=true` is also set, and otherwise a missing Gemini key is a hard `ConfigError` rather than a silent downgrade to a paid service. The Gemini model id comes from `GEMINI_MODEL`, defaulting to `gemini-2.5-flash` — **never hardcode a model id again**: this project was pinned to `gemini-2.0-flash`, which Google shut down on 1 June 2026, breaking every AI stage. Plus `corsHeaders`, `ConfigError`/`ValidationError` (mapped to 500/400 respectively by each function), structured `log`/`logError`, and `withTimeout`. **When adding a new edge function that calls the LLM, use `getAiModel()` rather than hardcoding a provider** so both deployment paths keep working.
 
 - **`supabase/functions/_shared/leadScoring.ts`** — pure, deterministic, no AI: `computeLeadScore` (5 weighted factors: budget fit, business fit, growth potential, marketing maturity, goal urgency → 0-100 score + Cold/Warm/Hot/Priority tier), `computeConfidence` (based on which intake fields were actually filled in, with a permanent caveat that no live analytics are connected), and `classifyBusiness` (regex-based industry → category + allowed-channels guardrail). Keep this rule-based — the whole point is that these numbers must be reproducible and explainable, unlike anything the LLM generates.
 
@@ -92,7 +92,7 @@ All four tables have RLS enabled with anonymous-insert (and, for the two report-
 
 Frontend (`.env`, `VITE_`-prefixed, embedded at build time): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`.
 
-Edge functions (Supabase secrets, never exposed to the client): `LOVABLE_API_KEY` or `GEMINI_API_KEY` (AI provider — see `ai-gateway.ts`), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (service-role key, used only server-side in `stripe-webhook` to update order status — never use this key in frontend code).
+Edge functions (Supabase secrets, never exposed to the client): `GEMINI_API_KEY` (**required** — free, no credit card), optionally `GEMINI_MODEL` (defaults to `gemini-2.5-flash`), optionally `LOVABLE_API_KEY` + `ALLOW_LOVABLE_AI=true` (paid, opt-in only — see `ai-gateway.ts`), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (service-role key, used only server-side in `stripe-webhook` to update order status — never use this key in frontend code).
 
 ### Path alias
 
