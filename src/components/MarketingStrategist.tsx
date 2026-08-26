@@ -83,7 +83,7 @@ type Report = {
  * This is a defense-in-depth layer on top of the server-side zod validation.
  */
 function normalizeReport(input: unknown, business: Business): Report {
-  const r = (input ?? {}) as Partial<Report> & Record<string, any>;
+  const r = (input ?? {}) as Partial<Report>;
   const arr = <T,>(v: unknown, fallback: T[] = []): T[] => (Array.isArray(v) ? v : fallback);
   const str = (v: unknown, fallback = ""): string => (typeof v === "string" ? v : fallback);
   const num = (v: unknown, fallback = 0): number => (typeof v === "number" && Number.isFinite(v) ? v : fallback);

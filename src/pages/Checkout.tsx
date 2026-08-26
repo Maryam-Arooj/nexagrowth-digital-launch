@@ -60,9 +60,13 @@ const Checkout = () => {
 
       clearCart();
       navigate("/thank-you");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.message || "Failed to place order. Please try again.");
+      // `apiPost` only ever throws `ApiError extends Error`, so this narrowing
+      // keeps the useful server message. Reading `.message` off an unnarrowed
+      // value would throw a second time inside the catch if it were ever null.
+      const message = err instanceof Error ? err.message : "";
+      toast.error(message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
