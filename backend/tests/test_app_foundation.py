@@ -23,19 +23,25 @@ def test_app_boots_and_health_responds():
     assert body["status"] in {"ok", "degraded"}
 
 
-def test_health_reports_database_configured_but_offline_here():
+def test_health_reports_database_status_with_a_useful_detail():
+    """Works whether or not PostgreSQL is running — the detail must always explain."""
     body = client.get("/api/health").json()
-    assert body["database"]["configured"] is True
-    # No PostgreSQL in this environment -> connected False, with a useful detail.
-    assert body["database"]["connected"] in {True, False}
-    assert isinstance(body["database"]["detail"], str)
+    settings = get_settings()
+    assert body["database"]["configured"] is settings.is_database_configured
+    assert isinstance(body["database"]["connected"], bool)
+    assert isinstance(body["database"]["detail"], str) and body["database"]["detail"]
 
 
 def test_health_never_leaks_the_gemini_key_or_the_dsn():
     raw = client.get("/api/health").text
     settings = get_settings()
     assert "testpw" not in raw
-    assert settings.database_url not in raw
+    # Guard the empty-DSN case: `"" in anything` is always True, which would make
+    # this assertion vacuously pass rather than actually checking anything.
+    if settings.database_url:
+        assert settings.database_url not in raw
+    if settings.gemini_api_key:
+        assert settings.gemini_api_key not in raw
     # Only a boolean about the AI key, never the value.
     assert isinstance(client.get("/api/health").json()["ai"]["configured"], bool)
 

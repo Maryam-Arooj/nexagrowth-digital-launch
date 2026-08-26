@@ -10,8 +10,9 @@ Architecture:
 
 No Supabase, no Stripe, no paid service anywhere in the chain.
 
-Phase 2 provided the foundation. Phase 3 adds the five tables and the data API that
-replaces the frontend's direct Supabase table writes. AI endpoints arrive in Phase 4.
+Phase 2 laid the foundation, Phase 3 added the five tables and the data API, Phase 4
+adds the AI endpoints: the six-stage marketing pipeline (NDJSON stream), one-shot
+content actions, and the streamed strategist chat.
 """
 
 from __future__ import annotations
@@ -22,13 +23,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import check_database_connection
 from app.routers import data as data_router
+from app.routers import marketing as marketing_router
 from app.services.lead_scoring import compute_lead_score_and_confidence
 
 settings = get_settings()
 
 app = FastAPI(
     title="NexaGrowth API",
-    version="0.3.0",
+    version="0.4.0",
     description="Local FastAPI backend for NexaGrowth Digital. Replaces Supabase.",
 )
 
@@ -43,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(data_router.router)
+app.include_router(marketing_router.router)
 
 
 @app.get("/api/health", tags=["health"])
