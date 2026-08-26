@@ -46,6 +46,17 @@ Local function secrets go in `supabase/functions/.env` (copy from `supabase/func
 
 All routes except `/` are lazy-loaded (`React.lazy` + `Suspense`) in `App.tsx`: `/cart`, `/checkout`, `/thank-you`, `/privacy`, `/terms`, `*` (404).
 
+> **Phase 5 (frontend rewiring) is complete.** Every backend call in the frontend now
+> goes to the local FastAPI server via `src/lib/api.ts` (`VITE_API_URL`, default
+> `http://localhost:8000`). No component calls Supabase any more, and no API key is
+> sent from the browser — FastAPI holds the Gemini key and the PostgreSQL credentials
+> server-side. Stripe has been removed: checkout records a pending order in PostgreSQL.
+>
+> The `supabase/` directory and the `@supabase/supabase-js` package are still present
+> but **no longer referenced by any component**; they are removed in Phase 6. The
+> sections below describing Supabase data flow are retained for historical context
+> until then.
+
 State is split between:
 - **`CartContext`** (`src/contexts/CartContext.tsx`) — in-memory (not persisted) cart of selected pricing plans, used by `Pricing.tsx`, `Cart.tsx`, `Checkout.tsx`, `Navbar.tsx`.
 - **`localStorage`** (`nexagrowth-strategy-v2` key) — persists the AI Employee's last generated business + report, so reopening the widget restores the previous report instead of re-running the flow (`MarketingStrategist.tsx`).
@@ -54,7 +65,7 @@ State is split between:
 
 Design tokens (colors, radius) are CSS variables defined in `src/index.css` (`:root`) and consumed through Tailwind's `hsl(var(--x))` pattern configured in `tailwind.config.ts` — this is the dark, purple/pink-accent theme (`--primary`, `--accent`) used throughout via `bg-gradient-to-r from-primary to-accent`. Change the theme by editing the CSS variables, not by hardcoding colors in components.
 
-### Checkout / payment flow
+### Checkout / payment flow (superseded in Phase 5)
 
 `Pricing.tsx` adds a plan to `CartContext` → `/cart` → `/checkout` (`Checkout.tsx`). On submit:
 - **Card payment**: calls the `stripe-checkout` edge function to create a Stripe Checkout subscription session, inserts an `orders` row with `status: "pending"` (plus `order_items`) directly from the client via the Supabase JS client, then redirects to Stripe. The `stripe-webhook` edge function listens for `checkout.session.completed` and flips matching pending orders (by `customer_email`) to `status: "paid"`.
@@ -88,7 +99,16 @@ Defined across `supabase/migrations/20260729_initial_schema.sql` and `20260731_g
 
 All four tables have RLS enabled with anonymous-insert (and, for the two report-like tables, anonymous-select) policies — there's no per-user data isolation by design. `src/integrations/supabase/types.ts` and `src/integrations/supabase/client.ts` are Lovable/Supabase-generated — treat both as generated code; regenerate rather than hand-edit if the schema changes.
 
-### Environment variables
+### Environment variables (superseded in Phase 5)
+
+**Current:** the frontend reads exactly one variable, `VITE_API_URL` (default
+`http://localhost:8000`) — public by design. All secrets live in `backend/.env`
+(`DATABASE_URL`, `GEMINI_API_KEY`). Never add an AI key or database password to a
+`VITE_`-prefixed variable: they are inlined into the JS bundle at build time.
+
+The historical Supabase variables below are no longer used by any component.
+
+
 
 Frontend (`.env`, `VITE_`-prefixed, embedded at build time): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`.
 

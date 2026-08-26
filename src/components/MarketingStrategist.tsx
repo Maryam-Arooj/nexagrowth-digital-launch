@@ -14,7 +14,7 @@ import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { supabase } from "@/integrations/supabase/client";
+import { API_URL, apiUrl, apiPost } from "@/lib/api";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { PipelineStatus, applyPipelineStageEvent, splitNdjsonLines, type PipelineStageState, type PipelineStageEvent } from "@/components/PipelineStatus";
@@ -196,8 +196,8 @@ const ACTIONS = [
   { id: "email-campaign", label: "Email Marketing Campaign", icon: FileText },
 ];
 
-const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-const AUTH = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
+// Endpoints now live on the local FastAPI backend (see src/lib/api.ts). No API key
+// is sent from the browser: FastAPI holds the Gemini key server-side.
 
 const serviceMap: Record<string, string[]> = {
   b2b: ["Paid Media Strategy", "Lead Generation Funnel", "SEO Growth System"],
@@ -317,13 +317,13 @@ export const MarketingStrategist = () => {
     const requestStartedAt = performance.now();
 
     try {
-      console.info("[AI Employee] Generating report", { companyName: business.companyName, industry: business.industry, url: `${FN_URL}/marketing-report` });
+      console.info("[AI Employee] Generating report", { companyName: business.companyName, industry: business.industry, url: apiUrl("/api/marketing-report") });
 
       let res: Response;
       try {
-        res = await fetch(`${FN_URL}/marketing-report`, {
+        res = await fetch(apiUrl("/api/marketing-report"), {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: AUTH },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ business }),
           signal: controller.signal,
         });
@@ -331,18 +331,18 @@ export const MarketingStrategist = () => {
         if (networkErr instanceof DOMException && networkErr.name === "AbortError") {
           throw new Error("The AI Employee took too long to respond. Please try again.");
         }
-        console.error("[AI Employee] Network error calling marketing-report:", { url: `${FN_URL}/marketing-report`, networkErr });
+        console.error("[AI Employee] Network error calling marketing-report:", { url: apiUrl("/api/marketing-report"), networkErr });
         // "Failed to fetch" (a bare TypeError) means the browser couldn't even reach the
         // server — almost always a local-dev setup issue, not a real network outage.
         // Give a specific, actionable message instead of a generic one so this is
         // self-diagnosable next time instead of a dead end.
         if (networkErr instanceof TypeError) {
           throw new Error(
-            `Could not connect to the AI backend at ${FN_URL}. This usually means the local Supabase functions server isn't running. Check: ` +
-            `(1) Docker Desktop is open and running, ` +
-            `(2) a terminal has "supabase functions serve --env-file ./supabase/functions/.env --no-verify-jwt" (or "supabase start") running with no errors, ` +
-            `(3) .env.local exists (copied from .env.local.example) and you restarted "npm run dev" after creating it. ` +
-            `See LOCAL_SETUP.md for the full setup.`
+            `Could not connect to the AI backend at ${API_URL}. This usually means the local FastAPI server isn't running. Check: ` +
+            `(1) a terminal in backend/ has "uvicorn app.main:app --reload --port 8000" running with no errors, ` +
+            `(2) backend/.env exists (copied from backend/.env.example) with DATABASE_URL and GEMINI_API_KEY set, ` +
+            `(3) http://localhost:8000/api/health responds. ` +
+            `See backend/README.md for the full setup.`
           );
         }
         throw new Error("Could not reach the AI service. Check your connection and try again.");
@@ -410,17 +410,16 @@ export const MarketingStrategist = () => {
         elapsedMs: Math.round(performance.now() - requestStartedAt),
       });
 
-      // Save report data to Supabase (best-effort — a save failure should never
-      // block showing the report the user already paid AI credits for).
+      // Persist the report (best-effort — a save failure should never block showing
+      // the report the user already spent AI quota generating).
       try {
-        const { error: dbError } = await supabase.from("marketing_reports").insert({
+        await apiPost("/api/reports", {
           company_name: business.companyName,
-          business_data: business as any,
-          report_data: normalized as any,
+          business_data: business,
+          report_data: normalized,
         });
-        if (dbError) console.error("[AI Employee] Failed to save report to database:", dbError);
       } catch (dbErr) {
-        console.error("[AI Employee] Unexpected error saving report to database:", dbErr);
+        console.error("[AI Employee] Failed to save report to database:", dbErr);
       }
 
       setReport(normalized);
@@ -445,9 +444,9 @@ export const MarketingStrategist = () => {
     if (!report) return;
     setActionLoading(id);
     try {
-      const res = await fetch(`${FN_URL}/marketing-action`, {
+      const res = await fetch(apiUrl("/api/marketing-action"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: AUTH },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: id, business, report }),
       });
       const data = await res.json();
@@ -455,9 +454,9 @@ export const MarketingStrategist = () => {
       setActionResult({ id, label, text: data.text });
       setStage("action");
     } catch (e) {
-      console.error("[AI Employee] Action failed:", { action: id, url: `${FN_URL}/marketing-action`, e });
+      console.error("[AI Employee] Action failed:", { action: id, url: apiUrl("/api/marketing-action"), e });
       if (e instanceof TypeError) {
-        toast.error("Can't reach the local AI backend — is 'supabase functions serve' (or 'supabase start') running?");
+        toast.error("Can't reach the local AI backend — is the FastAPI server running on port 8000?");
       } else {
         toast.error("Action failed. Try again.");
       }
@@ -469,13 +468,12 @@ export const MarketingStrategist = () => {
   const saveActionResult = async (text: string) => {
     if (!actionResult) return;
     try {
-      const { error } = await supabase.from("generated_content").insert({
+      await apiPost("/api/generated-content", {
         company_name: business.companyName,
         action_type: actionResult.id,
         label: actionResult.label,
         content: text,
       });
-      if (error) throw error;
       toast.success("Saved");
     } catch (e) {
       console.error("[AI Employee] Failed to save generated content:", e);
@@ -1374,8 +1372,7 @@ const ChatView = ({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: `${FN_URL}/marketing-strategist`,
-        headers: { Authorization: AUTH },
+        api: apiUrl("/api/marketing-strategist"),
         body: () => ({
           business: contextRef.current.business,
           reportSummary: contextRef.current.report?.executiveSummary || "",

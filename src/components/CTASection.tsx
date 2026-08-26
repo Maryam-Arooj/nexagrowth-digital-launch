@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { apiPost } from "@/lib/api";
 
 const CTASection = () => {
   const [email, setEmail] = useState("");
@@ -20,23 +20,16 @@ const CTASection = () => {
     setLoading(true);
     try {
       // Insert as lead with newsletter goal
-      const { error } = await supabase.from("leads").insert({
+      await apiPost("/api/leads", {
         name: email.split("@")[0], // derive name from email prefix
         email: email.trim(),
         goals: "Newsletter / Marketing updates subscription",
       });
-      if (error && !error.message.includes("duplicate")) throw error;
       setDone(true);
       toast.success("You're on the list! Check your inbox for a welcome email.");
     } catch (err) {
-      // If it's a duplicate email, still show success
-      const error = err as { message?: string; code?: string };
-      if (error?.message?.includes("duplicate") || error?.code === "23505") {
-        setDone(true);
-        toast.success("You're already on our list!");
-      } else {
-        toast.error("Something went wrong. Please try again.");
-      }
+      console.error(err);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,7 @@ import { ArrowLeft, CreditCard, Building2, Wallet, Loader2 } from "lucide-react"
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
-import { supabase } from "@/integrations/supabase/client";
+import { apiPost } from "@/lib/api";
 import { toast } from "sonner";
 
 const Checkout = () => {
@@ -42,89 +42,21 @@ const Checkout = () => {
     setLoading(true);
 
     try {
-      if (payment === "card") {
-        // Stripe flow: Call stripe-checkout Edge Function
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            items,
-            customerEmail: email,
-            successUrl: `${window.location.origin}/thank-you`,
-            cancelUrl: `${window.location.origin}/cart`,
-          }),
-        });
-
-        const stripeData = await res.json();
-        if (!res.ok) throw new Error(stripeData.error || "Stripe session creation failed");
-
-        // Save order metadata as pending
-        const { data: orderData, error: orderError } = await supabase
-          .from("orders")
-          .insert({
-            customer_name: name,
-            customer_email: email,
-            company: company || null,
-            payment_method: payment,
-            total_amount: total,
-            status: "pending",
-          })
-          .select()
-          .single();
-
-        if (orderError) throw orderError;
-
-        if (items.length > 0) {
-          const orderItemsToInsert = items.map((item) => ({
-            order_id: orderData.id,
-            plan_name: item.name,
-            price: item.price,
-          }));
-
-          const { error: itemsError } = await supabase
-            .from("order_items")
-            .insert(orderItemsToInsert);
-
-          if (itemsError) throw itemsError;
-        }
-
-        // Redirect to Stripe checkout page
-        window.location.href = stripeData.url;
-        return;
-      }
-
-      // Manual payment methods (Bank, Wallet) - save order and navigate to thank-you
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          customer_name: name,
-          customer_email: email,
-          company: company || null,
-          payment_method: payment,
-          total_amount: total,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      if (items.length > 0) {
-        const orderItemsToInsert = items.map((item) => ({
-          order_id: orderData.id,
+      // One request creates the order and all of its line items in a single
+      // transaction. The Supabase flow needed two round trips, and the second
+      // could leave an order with no items if it failed.
+      await apiPost("/api/orders", {
+        customer_name: name,
+        customer_email: email,
+        company: company || null,
+        payment_method: payment,
+        total_amount: total,
+        status: "pending",
+        items: items.map((item) => ({
           plan_name: item.name,
           price: item.price,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from("order_items")
-          .insert(orderItemsToInsert);
-
-        if (itemsError) throw itemsError;
-      }
+        })),
+      });
 
       clearCart();
       navigate("/thank-you");
@@ -217,7 +149,7 @@ const Checkout = () => {
                     {payment === "card" && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pt-2 text-sm text-muted-foreground flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-primary animate-pulse" />
-                        <span>You will be redirected to Stripe to securely complete your payment.</span>
+                        <span>Your order will be recorded and our team will contact you with payment details.</span>
                       </motion.div>
                     )}
                     {payment === "bank" && (

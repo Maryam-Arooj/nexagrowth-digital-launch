@@ -27,7 +27,7 @@ which is gitignored. Nothing here is bundled into the frontend.
 | 2 | Config, DB connection, CORS, health, **ported lead-scoring engine** | ✅ done |
 | 3 | **ORM models, Alembic migration, data API for the 5 tables** | ✅ done |
 | 4 | **AI endpoints (report / action / strategist) + Gemini** | ✅ done |
-| 5 | Frontend rewiring | pending |
+| 5 | **Frontend rewired to FastAPI** | ✅ done |
 | 6 | Remove Supabase code + dependency | pending |
 | 7 | End-to-end testing | pending |
 

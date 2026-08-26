@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { apiPost } from "@/lib/api";
 
 type FormState = {
   name: string;
@@ -39,13 +39,12 @@ const Contact = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("leads").insert({
+      await apiPost("/api/leads", {
         name: form.name,
         email: form.email,
         website: form.website || null,
         goals: form.goals,
       });
-      if (error) throw error;
 
       setSubmitted(true);
       toast.success("Audit request submitted! We'll respond within 48 hours.");
