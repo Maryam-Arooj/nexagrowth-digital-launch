@@ -46,16 +46,19 @@ Local function secrets go in `supabase/functions/.env` (copy from `supabase/func
 
 All routes except `/` are lazy-loaded (`React.lazy` + `Suspense`) in `App.tsx`: `/cart`, `/checkout`, `/thank-you`, `/privacy`, `/terms`, `*` (404).
 
-> **Phase 5 (frontend rewiring) is complete.** Every backend call in the frontend now
-> goes to the local FastAPI server via `src/lib/api.ts` (`VITE_API_URL`, default
-> `http://localhost:8000`). No component calls Supabase any more, and no API key is
-> sent from the browser — FastAPI holds the Gemini key and the PostgreSQL credentials
-> server-side. Stripe has been removed: checkout records a pending order in PostgreSQL.
+> **Phases 5 and 6 are complete — Supabase has been removed from this project.**
 >
-> The `supabase/` directory and the `@supabase/supabase-js` package are still present
-> but **no longer referenced by any component**; they are removed in Phase 6. The
-> sections below describing Supabase data flow are retained for historical context
-> until then.
+> The backend is now a local FastAPI service (`backend/`) with PostgreSQL and Gemini.
+> The frontend reaches it through `src/lib/api.ts` (`VITE_API_URL`, default
+> `http://localhost:8000`) and sends no API key of any kind. Stripe is gone too:
+> checkout records a pending order in PostgreSQL.
+>
+> **`supabase/`, `src/integrations/supabase/` and `@supabase/supabase-js` no longer
+> exist.** Sections below that describe Supabase edge functions, RLS policies or the
+> Supabase client are historical and describe code that has been deleted — see
+> `backend/README.md` for the current architecture. They are retained only because
+> the data model and the report pipeline were ported faithfully, so the descriptions
+> of *what the system does* remain accurate even where the *file paths* do not.
 
 State is split between:
 - **`CartContext`** (`src/contexts/CartContext.tsx`) — in-memory (not persisted) cart of selected pricing plans, used by `Pricing.tsx`, `Cart.tsx`, `Checkout.tsx`, `Navbar.tsx`.

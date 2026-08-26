@@ -16,7 +16,7 @@ That idea is implemented as three cooperating layers:
 2. **The AI Employee** — a guided intake form → an AI‑generated strategy report → on‑demand content generation → a live chat advisor, all scoped to the business the visitor described.
 3. **A self‑serve purchase path** — pricing plans flow into a cart, a checkout page, and either a real Stripe subscription or a manually‑confirmed payment method, so a convinced visitor can become a paying customer without ever talking to a human.
 
-A deliberate design principle threads through the AI layer: **numbers the business will make decisions on must be explainable, not AI‑invented.** The lead score, the AI confidence score, and which marketing channels are even allowed to be recommended are all computed with plain rule‑based logic (see [`supabase/functions/_shared/leadScoring.ts`](supabase/functions/_shared/leadScoring.ts)) — the LLM only writes the narrative, creative, and structured‑content parts of the report. This keeps the tool honest: it can't claim a lead is "hot" or a recommendation is "92% confident" for reasons nobody can point to.
+A deliberate design principle threads through the AI layer: **numbers the business will make decisions on must be explainable, not AI‑invented.** The lead score, the AI confidence score, and which marketing channels are even allowed to be recommended are all computed with plain rule‑based logic (see [`backend/app/services/lead_scoring.py`](backend/app/services/lead_scoring.py)) — the LLM only writes the narrative, creative, and structured‑content parts of the report. This keeps the tool honest: it can't claim a lead is "hot" or a recommendation is "92% confident" for reasons nobody can point to.
 
 ## 2. What's actually in the app
 
@@ -37,16 +37,15 @@ A modal opened from a floating launcher button (bottom‑right), implemented in 
 4. **Next actions** — one click generates a specific deliverable grounded in that business's report: Google Ads copy, Facebook/Meta ad copy, Instagram captions, an SEO keyword set, a 30‑day content calendar, or a 5‑email nurture sequence. Results can be edited, copied, regenerated, or saved.
 5. **Chat with advisor** — an open‑ended, streamed conversation with the same AI persona, aware of the business context and the report already generated.
 
-The report and every intake are persisted to Supabase (`marketing_reports` table) and mirrored in the browser's `localStorage`, so closing and reopening the widget restores the last session instead of starting over.
+The report and every intake are persisted to PostgreSQL via the backend (`marketing_reports` table) and mirrored in the browser's `localStorage`, so closing and reopening the widget restores the last session instead of starting over.
 
 ### 2.3 Pricing → Cart → Checkout → Payment
 
 Three plans are offered (Starter $1,499/mo, Growth $3,499/mo, Enterprise $6,999/mo — "Contact Sales"), with an annual‑billing toggle (20% off). Adding a plan puts it in an in‑memory cart (`CartContext`); `/cart` reviews it; `/checkout` collects contact info and a payment method:
 
-- **Credit card** → creates a real Stripe Checkout subscription session via the `stripe-checkout` edge function and redirects to Stripe. A `stripe-webhook` function listens for `checkout.session.completed` and marks the matching order `paid`.
-- **Bank transfer / digital wallet** → no live payment processor; the order is recorded as `pending` and the visitor is sent to a `/thank-you` confirmation page, with manual payment instructions shown in the UI.
+All three payment options (credit card, bank transfer, digital wallet) record the order and its line items in PostgreSQL as `pending` in a single atomic request, then send the visitor to a `/thank-you` confirmation page. **There is no payment processor** — this project takes no real money.
 
-There is no user authentication anywhere in the app — every write (leads, reports, orders, generated content) is an anonymous insert, permitted by Supabase Row Level Security policies designed for that purpose.
+There is no user authentication anywhere in the app. Every write (leads, reports, orders, generated content) goes through the FastAPI backend, which is the access boundary — the browser never touches PostgreSQL directly. The data endpoints are write‑only by design: nothing lists other visitors' reports or leads.
 
 ## 3. Tech stack
 
@@ -58,9 +57,10 @@ There is no user authentication anywhere in the app — every write (leads, repo
 | Animation | Framer Motion |
 | Forms/validation | React Hook Form + Zod |
 | Data fetching / cache | TanStack Query |
-| Backend | Supabase (Postgres, Row Level Security, Edge Functions on Deno) |
-| Payments | Stripe (subscriptions via Checkout Sessions + webhooks) |
-| AI | Vercel AI SDK (`ai`, `@ai-sdk/react`), served through Lovable's AI Gateway or Google Gemini directly |
+| Backend | FastAPI (Python 3.13) + SQLAlchemy 2 + Alembic |
+| Database | PostgreSQL (local), via psycopg 3 |
+| Payments | None — orders are recorded, no processor |
+| AI | Google Gemini, called directly from the backend (free tier). Frontend uses the Vercel AI SDK (`ai`, `@ai-sdk/react`) purely as a streaming chat client |
 | PDF export | jsPDF + jspdf‑autotable |
 | Testing | Vitest + Testing Library + jsdom |
 | Package manager | Bun (`bun.lock` / `bun.lockb` committed — npm/pnpm also work) |
@@ -69,89 +69,74 @@ There is no user authentication anywhere in the app — every write (leads, repo
 
 ### 4.1 Prerequisites
 
-- [Bun](https://bun.sh) (recommended) or Node.js 18+ with npm
-- A [Supabase](https://supabase.com) project (or use the one already configured — see `supabase/config.toml`)
-- A free [Google Gemini API key](https://aistudio.google.com/apikey) (no credit card required) **or** a Lovable AI Gateway key, for the AI features
-- A [Stripe](https://stripe.com) account, only if you want real card payments to work
+- Node.js 18+ (or [Bun](https://bun.sh)) for the frontend
+- **Python 3.10+** and **PostgreSQL 13+** running locally, for the backend
+- A free [Google Gemini API key](https://aistudio.google.com/apikey) — no credit card required
 
-### 4.2 Install & run the frontend
+Everything here is free and runs on your machine. No cloud account, no paid service.
+
+### 4.2 Start the backend
+
+Full instructions in [`backend/README.md`](backend/README.md). In short:
 
 ```bash
-bun install
-bun run dev        # http://localhost:8080
+psql -U postgres -h localhost -c "CREATE DATABASE nexagrowth;"
+
+cd backend
+cp .env.example .env          # then set DATABASE_URL and GEMINI_API_KEY inside it
+python -m venv .venv && .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python -m alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+```
+
+Check it: `curl http://localhost:8000/api/health` should report `"connected": true`.
+Interactive API browser: <http://localhost:8000/docs>.
+
+### 4.3 Start the frontend
+
+```bash
+npm install
+npm run dev        # http://localhost:8080
 ```
 
 Other scripts:
 
 ```bash
-bun run build        # production build
-bun run build:dev    # development-mode build (unminified, easier to debug)
-bun run preview       # preview the production build locally
-bun run lint          # run ESLint
-bun run test           # run the test suite once
-bun run test:watch     # run tests in watch mode
+npm run build        # production build
+npm run build:dev    # development-mode build (unminified, easier to debug)
+npm run preview      # preview the production build locally
+npm run lint         # run ESLint
+npm run test         # run the test suite once
+npm run test:watch   # run tests in watch mode
 ```
 
-### 4.3 Configure environment variables
+### 4.4 Environment variables
 
-**Frontend** — create/edit `.env` in the project root:
-
-```
-VITE_SUPABASE_URL="https://<your-project-ref>.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY="<your-anon/publishable-key>"
-VITE_SUPABASE_PROJECT_ID="<your-project-ref>"
-```
-
-**Edge functions** — copy `supabase/functions/.env.example` to `supabase/functions/.env` for local development, or set them as Supabase secrets for a deployed project:
+**The frontend takes exactly one value, and it is public:**
 
 ```
-GEMINI_API_KEY=       # REQUIRED. Free key from https://aistudio.google.com/apikey — no credit card needed
-GEMINI_MODEL=         # optional. Defaults to gemini-2.5-flash. Use gemini-2.5-flash-lite for more daily headroom
-LOVABLE_API_KEY=      # optional, PAID (Lovable credits). Ignored unless ALLOW_LOVABLE_AI=true is also set
-ALLOW_LOVABLE_AI=     # optional. Set to "true" only to deliberately opt into paid Lovable usage
+VITE_API_URL="http://localhost:8000"
 ```
 
-The AI provider is chosen at request time and **Gemini always wins**. `GEMINI_API_KEY` calls Google's API directly and is free. The Lovable AI Gateway is billed against Lovable credits — and because Lovable Cloud auto‑provisions `LOVABLE_API_KEY`, treating its presence as a fallback would spend money silently — so it runs only when `ALLOW_LOVABLE_AI=true` is explicitly set. Without a Gemini key the functions return a clear configuration error instead of quietly switching to a paid service.
+It can be omitted — `src/lib/api.ts` defaults to that URL.
 
-The model id is read from `GEMINI_MODEL`, defaulting to `gemini-2.5-flash` (free tier: 10 RPM / 250 RPD). One report costs 4 AI calls, so roughly 62 reports/day; set `GEMINI_MODEL=gemini-2.5-flash-lite` for ~250/day. Keeping the model id in configuration is deliberate — the project was previously pinned in code to `gemini-2.0-flash`, which Google retired on 1 June 2026.
-
-> **Do not enable billing on the Google Cloud project holding your Gemini key.** Unlike most Google services, enabling billing removes the Gemini free tier from that project entirely.
-
-For Stripe payments, also set (as Supabase secrets, never in the frontend `.env`):
+**Every secret lives in `backend/.env`**, server-side, and is never bundled into the
+browser:
 
 ```
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/nexagrowth
+GEMINI_API_KEY=
+GEMINI_MODEL=          # optional, defaults to gemini-2.5-flash
 ```
 
-### 4.4 Set up Supabase
+> **Never prefix an AI key or a database password with `VITE_`.** Every `VITE_`
+> variable is inlined into the JavaScript bundle at build time and is readable by
+> anyone who opens the site.
 
-Requires the [Supabase CLI](https://supabase.com/docs/guides/cli).
-
-```bash
-# Apply the database schema (leads, marketing_reports, orders, order_items, generated_content)
-supabase db push
-# or run supabase/migrations/*.sql manually in the Supabase SQL editor
-
-# Serve edge functions locally
-supabase functions serve
-
-# Deploy edge functions to your project
-supabase functions deploy marketing-report
-supabase functions deploy marketing-action
-supabase functions deploy marketing-strategist
-supabase functions deploy stripe-checkout
-supabase functions deploy stripe-webhook
-
-# Set secrets on the deployed project
-supabase secrets set GEMINI_API_KEY=<your-key>
-supabase secrets set STRIPE_SECRET_KEY=<your-key>
-supabase secrets set STRIPE_WEBHOOK_SECRET=<your-key>
-```
-
-All four data tables have Row Level Security enabled with policies that allow anonymous inserts (and, for `marketing_reports`/`generated_content`, anonymous selects) — no auth setup is required to use the app as built.
+> **Do not enable billing on the Google Cloud project holding your Gemini key.**
+> Unlike most Google services, enabling billing removes the Gemini free tier from
+> that project entirely.
 
 ## 5. Project structure
 
@@ -160,21 +145,26 @@ src/
   components/          Landing-page sections (Hero, Services, Pricing, ...) and the MarketingStrategist widget
   components/ui/       shadcn/ui component library (Radix + Tailwind)
   contexts/            CartContext (in-memory cart state)
-  integrations/supabase/  Generated Supabase client + database types
+  lib/api.ts           Client for the FastAPI backend (base URL + error normalisation)
   pages/               Route-level pages: Index, Cart, Checkout, ThankYou, PrivacyPolicy, Terms, NotFound
   test/                Vitest setup and example test
 
-supabase/
-  migrations/          SQL schema (leads, marketing_reports, orders, order_items, generated_content)
-  functions/
-    marketing-report/     Generates the full AI strategy report + deterministic lead score
-    marketing-action/     Generates one specific deliverable (ads, captions, SEO, calendar, emails)
-    marketing-strategist/ Streamed, open-ended chat with the AI advisor
-    stripe-checkout/      Creates a Stripe Checkout subscription session
-    stripe-webhook/       Marks orders "paid" on checkout.session.completed
-    _shared/
-      ai-gateway.ts        AI provider selection (Lovable Gateway / Gemini), CORS, logging, timeouts
-      leadScoring.ts        Deterministic lead score, AI confidence score, channel classification
+backend/
+  app/
+    main.py            FastAPI app, CORS, /api/health
+    config.py          settings from backend/.env
+    db.py              SQLAlchemy engine/session
+    models.py          5 ORM models
+    schemas.py         Pydantic request/response
+    routers/
+      data.py          leads, reports, generated-content, orders
+      marketing.py     the 3 AI endpoints (NDJSON + SSE streaming)
+    services/
+      lead_scoring.py     deterministic scoring — no AI
+      pipeline_stages.py  the 6 report stages
+      ai_gateway.py       Gemini access, timeouts, typed errors
+  alembic/             database migrations
+  tests/               94 tests
 ```
 
 ## 6. Testing
@@ -191,9 +181,9 @@ bunx vitest run -t "test name"                # run tests matching a name
 ## 7. Deployment notes
 
 - The frontend is a static Vite build (`bun run build` → `dist/`) deployable to any static host (Vercel, Netlify, Lovable, etc.).
-- Edge functions deploy independently via the Supabase CLI — they are **not** bundled by Vite.
-- Configure the Stripe webhook endpoint (in the Stripe dashboard) to point at your deployed `stripe-webhook` function URL, listening for the `checkout.session.completed` event.
-- Without `GEMINI_API_KEY` set as a Supabase secret, the AI Employee returns a clear "AI service is not configured" error instead of failing silently — and never silently falls back to the paid Lovable gateway.
+- The backend is a separate FastAPI process (`backend/`) and is **not** bundled by Vite. It currently runs locally only — see `backend/README.md`.
+- **The deployed static frontend has no reachable backend**, because the API runs on `localhost`. The marketing site renders, but the AI features and forms require the backend running on the same machine. Hosting the backend is a later, separate decision.
+- Without `GEMINI_API_KEY` in `backend/.env`, the AI endpoints return a clear "AI service is not configured" error instead of failing silently.
 
 ## 8. Further reading
 
