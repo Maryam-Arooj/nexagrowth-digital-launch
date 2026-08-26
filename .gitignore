@@ -28,3 +28,11 @@ supabase/functions/.env
 
 # Local frontend env (use .env.local.example as the template)
 .env
+
+# Playwright output — generated on every run, never source
+test-results/
+playwright-report/
+
+# Local verification scratch (archives, staging copies, quarantine folders)
+_to_delete/
+*.tgz
