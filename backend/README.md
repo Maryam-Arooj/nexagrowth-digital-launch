@@ -28,11 +28,12 @@ which is gitignored. Nothing here is bundled into the frontend.
 | 3 | **ORM models, Alembic migration, data API for the 5 tables** | ✅ done |
 | 4 | **AI endpoints (report / action / strategist) + Gemini** | ✅ done |
 | 5 | **Frontend rewired to FastAPI** | ✅ done |
-| 6 | Remove Supabase code + dependency | pending |
-| 7 | End-to-end testing | pending |
+| 6 | **Remove Supabase code + dependency** | ✅ done |
+| 7 | **Final integration + end-to-end QA** | ✅ done |
 
-Supabase is still in place and untouched — by design. Nothing is removed until its
-replacement is proven working (Phase 6).
+**The migration is complete.** Supabase and Stripe are gone: no `supabase/` code in
+the app, no `@supabase/supabase-js`, no Stripe dependency. Nothing was removed until
+its replacement was proven working, which is why Phase 6 came after Phase 5.
 
 ---
 
@@ -117,9 +118,14 @@ Healthy output:
   "status": "ok",
   "api": "up",
   "database": {"configured": true, "connected": true, "detail": "connected"},
-  "ai": {"configured": false, "model": "gemini-2.5-flash"}
+  "ai": {"configured": true, "model": "gemini-2.5-flash"}
 }
 ```
+
+`"ai": {"configured": false}` means `GEMINI_API_KEY` is unset — the database routes
+still work, but every AI endpoint will return a clear 500. Note the health route
+reports only whether a key is *present*; it never returns the key, its length, or a
+prefix of it.
 
 `"status": "degraded"` with `"connected": false` means PostgreSQL is unreachable —
 the `detail` field explains why. **Credentials are stripped from that message**, so

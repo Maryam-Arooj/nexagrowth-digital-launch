@@ -14,7 +14,7 @@ That idea is implemented as three cooperating layers:
 
 1. **A trust‑building marketing site** (services, process, case studies, team, testimonials, FAQ, pricing) — the standard agency content that makes the AI Employee's advice feel credible.
 2. **The AI Employee** — a guided intake form → an AI‑generated strategy report → on‑demand content generation → a live chat advisor, all scoped to the business the visitor described.
-3. **A self‑serve purchase path** — pricing plans flow into a cart, a checkout page, and either a real Stripe subscription or a manually‑confirmed payment method, so a convinced visitor can become a paying customer without ever talking to a human.
+3. **A self‑serve purchase path** — pricing plans flow into a cart, a checkout page, and a recorded order, so a convinced visitor can commit to a plan without ever talking to a human. **There is no payment processor:** the order is stored as `pending` and settled out of band.
 
 A deliberate design principle threads through the AI layer: **numbers the business will make decisions on must be explainable, not AI‑invented.** The lead score, the AI confidence score, and which marketing channels are even allowed to be recommended are all computed with plain rule‑based logic (see [`backend/app/services/lead_scoring.py`](backend/app/services/lead_scoring.py)) — the LLM only writes the narrative, creative, and structured‑content parts of the report. This keeps the tool honest: it can't claim a lead is "hot" or a recommendation is "92% confident" for reasons nobody can point to.
 
@@ -29,7 +29,7 @@ A single scrolling page (`src/pages/Index.tsx`) built from independent section c
 A modal opened from a floating launcher button (bottom‑right), implemented in [`src/components/MarketingStrategist.tsx`](src/components/MarketingStrategist.tsx). The flow:
 
 1. **Intake** — visitor enters company name, industry, target audience, monthly budget, 90‑day goal, and current marketing channels.
-2. **Report generation** — the intake is sent to the `marketing-report` edge function, which:
+2. **Report generation** — the intake is posted to the backend's `/api/marketing-report` endpoint, which streams six pipeline stages back as NDJSON and:
    - classifies the business into a category (e‑commerce, SaaS, local, agency, other) and restricts which marketing channels the AI is allowed to suggest, so recommendations always fit the business type;
    - computes a **0–100 lead score** (Cold/Warm/Hot/Priority tier) and an **AI confidence score**, both deterministically from the submitted fields — never from the model;
    - asks the LLM for the rest: executive summary, SWOT, competitor analysis, channel strategy, budget allocation, a 30‑day action plan, a 90‑day roadmap, SEO keywords, content ideas, KPI targets, a recommended pricing plan (must be one of the real plans on the site), risk analysis, and final recommendations — validated against a strict schema before it's ever shown to the user.

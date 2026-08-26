@@ -2,11 +2,34 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ## ⚠️ Read this first — the backend was replaced
+>
+> **Supabase and Stripe have been removed. The migration is complete (Phases 2–7).**
+>
+> ```
+> React/Vite  ->  FastAPI (backend/)  ->  SQLAlchemy  ->  local PostgreSQL
+>                       |
+>                       +-------------->  Gemini API (direct, free tier)
+> ```
+>
+> The frontend reaches the API through `src/lib/api.ts` (`VITE_API_URL`, default
+> `http://localhost:8000`) and sends **no API key of any kind**. Every secret lives
+> in `backend/.env`, which is gitignored. Checkout records a pending order in
+> PostgreSQL — there is no payment processor.
+>
+> **`supabase/`, `src/integrations/supabase/`, `@supabase/supabase-js` and every
+> Stripe dependency no longer exist.** Sections below that describe Supabase edge
+> functions, RLS policies, the Supabase client or Stripe are **historical**: they
+> describe deleted code, and their commands will fail. They are retained only
+> because the data model and the six-stage report pipeline were ported faithfully,
+> so the descriptions of *what the system does* remain accurate even where the
+> *file paths* do not. See `backend/README.md` for the current architecture.
+
 ## Project overview
 
-NexaGrowth Digital is a marketing-agency marketing website: a single-page landing site (services, pricing, case studies, testimonials, team, FAQ) plus a lightweight commerce flow (cart → checkout → Stripe or manual payment → thank-you) and an AI-powered lead-generation tool ("AI Employee" / Marketing Strategist widget) that interviews a visitor about their business and produces a full AI-generated marketing strategy report.
+NexaGrowth Digital is a marketing-agency marketing website: a single-page landing site (services, pricing, case studies, testimonials, team, FAQ) plus a lightweight commerce flow (cart → checkout → recorded order → thank-you; **no payment processor**) and an AI-powered lead-generation tool ("AI Employee" / Marketing Strategist widget) that interviews a visitor about their business and produces a full AI-generated marketing strategy report.
 
-It was originally scaffolded by Lovable (`vite_react_shadcn_ts` template — see `lovable-tagger` dev dependency and `README.md`) and is backed by Supabase (Postgres + Edge Functions) for data storage, Stripe for subscription payments, and an LLM (via Lovable's AI Gateway or Google Gemini directly) for report/content generation.
+It was originally scaffolded by Lovable (`vite_react_shadcn_ts` template — see `lovable-tagger` dev dependency and `README.md`). It is now backed by a **local FastAPI service** (`backend/`) over **PostgreSQL** for data storage, records orders without any payment processor, and calls **Google Gemini directly from the backend** (free tier) for report/content generation.
 
 ## Commands
 
@@ -24,9 +47,13 @@ bun run test:watch    # vitest (watch mode)
 Run a single test file: `bun run test src/test/example.test.ts` (or `bunx vitest run <path>`).
 Run tests matching a name: `bunx vitest run -t "<test name>"`.
 
-There is no Jest — all tests use Vitest + Testing Library + jsdom (`vitest.config.ts`, `src/test/setup.ts`). Playwright (`@playwright/test`) is a devDependency but no `playwright.config.*` or e2e specs exist yet.
+There is no Jest — all tests use Vitest + Testing Library + jsdom (`vitest.config.ts`, `src/test/setup.ts`). Playwright (`@playwright/test`) drives the browser-level checks: `playwright.config.ts` and `tests/smoke.spec.ts`.
 
-### Supabase Edge Functions (Deno)
+### Supabase Edge Functions (Deno) — REMOVED, historical only
+
+> These functions no longer exist and the commands below will fail. Their logic
+> was ported to `backend/app/routers/marketing.py` and
+> `backend/app/services/`. Kept as a record of what was migrated.
 
 Edge functions live under `supabase/functions/*` and are deployed separately from the Vite app (they are NOT bundled by Vite). To work on them locally you need the Supabase CLI:
 
@@ -45,20 +72,6 @@ Local function secrets go in `supabase/functions/.env` (copy from `supabase/func
 `src/App.tsx` defines the router. `/` (`pages/Index.tsx`) renders the whole marketing page as a stack of section components in a fixed order (Navbar → Hero → TrustBar → About → Services → Process → CaseStudies → WhyChooseUs → Team → Pricing → Testimonials → FAQ → CTASection → Contact → Footer), with the `MarketingStrategist` chat widget mounted globally as a floating launcher button. Nav links (`Navbar.tsx`) target sections on `/` rather than separate routes. They are modelled as section **ids**, not raw hrefs: `handleNavClick` calls `preventDefault()` and either scrolls in place (already on `/`) or router-navigates with `navigate("/", { state: { scrollTo: id } })`. A `useEffect` in `Navbar` reads that `location.state` after the lazy-loaded `Index` page mounts and scrolls, then clears the state. Each anchor keeps a real `href` so middle-click and ctrl/cmd-click still open a new tab. **Never reintroduce `window.location.href` here** — a full reload remounts the app and wipes `CartContext`, which is in-memory only.
 
 All routes except `/` are lazy-loaded (`React.lazy` + `Suspense`) in `App.tsx`: `/cart`, `/checkout`, `/thank-you`, `/privacy`, `/terms`, `*` (404).
-
-> **Phases 5 and 6 are complete — Supabase has been removed from this project.**
->
-> The backend is now a local FastAPI service (`backend/`) with PostgreSQL and Gemini.
-> The frontend reaches it through `src/lib/api.ts` (`VITE_API_URL`, default
-> `http://localhost:8000`) and sends no API key of any kind. Stripe is gone too:
-> checkout records a pending order in PostgreSQL.
->
-> **`supabase/`, `src/integrations/supabase/` and `@supabase/supabase-js` no longer
-> exist.** Sections below that describe Supabase edge functions, RLS policies or the
-> Supabase client are historical and describe code that has been deleted — see
-> `backend/README.md` for the current architecture. They are retained only because
-> the data model and the report pipeline were ported faithfully, so the descriptions
-> of *what the system does* remain accurate even where the *file paths* do not.
 
 State is split between:
 - **`CartContext`** (`src/contexts/CartContext.tsx`) — in-memory (not persisted) cart of selected pricing plans, used by `Pricing.tsx`, `Cart.tsx`, `Checkout.tsx`, `Navbar.tsx`.
@@ -92,7 +105,7 @@ This is the most complex part of the codebase, split across one large frontend c
 
 - **`supabase/functions/_shared/leadScoring.ts`** — pure, deterministic, no AI: `computeLeadScore` (5 weighted factors: budget fit, business fit, growth potential, marketing maturity, goal urgency → 0-100 score + Cold/Warm/Hot/Priority tier), `computeConfidence` (based on which intake fields were actually filled in, with a permanent caveat that no live analytics are connected), and `classifyBusiness` (regex-based industry → category + allowed-channels guardrail). Keep this rule-based — the whole point is that these numbers must be reproducible and explainable, unlike anything the LLM generates.
 
-### Data model (Supabase Postgres)
+### Data model (originally Supabase Postgres — now local PostgreSQL via Alembic)
 
 Defined across `supabase/migrations/20260729_initial_schema.sql` and `20260731_generated_content.sql`:
 - `leads` — free-standing contact-form submissions (not currently wired to a UI form in the reviewed code; schema-only or used elsewhere).
