@@ -132,8 +132,14 @@ class OrderItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=_NOW, nullable=False
     )
+    # `index=True` produces `ix_order_items_order_id` — the exact name migration 0001
+    # already created. Declaring it here changes no schema; it stops `alembic revision
+    # --autogenerate` from reading the index as unwanted and proposing to drop it.
     order_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     plan_name: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

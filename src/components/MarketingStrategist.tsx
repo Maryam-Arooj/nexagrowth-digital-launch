@@ -286,6 +286,11 @@ export const MarketingStrategist = () => {
   const [pipelineStages, setPipelineStages] = useState<PipelineStageState[]>(initialPipelineStages());
   const [actionResult, setActionResult] = useState<{ id: string; label: string; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Bumped by handleReset. runAction captures it before awaiting and discards its
+  // result if it changed, so an action still in flight when the user clicks "New"
+  // cannot drag them back into a result belonging to the report they just cleared
+  // (which then left the Back button showing an empty panel, since report is null).
+  const sessionRef = useRef(0);
   const [assistantInsight, setAssistantInsight] = useState<AssistantInsight | null>(null);
 
   // Load saved
@@ -423,7 +428,15 @@ export const MarketingStrategist = () => {
       }
 
       setReport(normalized);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ business, report: normalized }));
+      // Best-effort cache only. This sat inside the network try/catch, so a quota
+      // error or a private-mode block reached the outer handler and showed "Failed
+      // to generate report" for a report that had already generated *and* already
+      // been saved to PostgreSQL above.
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ business, report: normalized }));
+      } catch (storageErr) {
+        console.warn("[AI Employee] Could not cache the report locally:", storageErr);
+      }
       setStage("report");
       toast.success("AI Employee strategy report generated");
     } catch (e: unknown) {
@@ -442,6 +455,7 @@ export const MarketingStrategist = () => {
 
   const runAction = async (id: string, label: string) => {
     if (!report) return;
+    const session = sessionRef.current;
     setActionLoading(id);
     try {
       const res = await fetch(apiUrl("/api/marketing-action"), {
@@ -451,9 +465,11 @@ export const MarketingStrategist = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
+      if (session !== sessionRef.current) return; // reset while this was in flight
       setActionResult({ id, label, text: data.text });
       setStage("action");
     } catch (e) {
+      if (session !== sessionRef.current) return; // reset while this was in flight
       console.error("[AI Employee] Action failed:", { action: id, url: apiUrl("/api/marketing-action"), e });
       if (e instanceof TypeError) {
         toast.error("Can't reach the local AI backend — is the FastAPI server running on port 8000?");
@@ -461,7 +477,7 @@ export const MarketingStrategist = () => {
         toast.error("Action failed. Try again.");
       }
     } finally {
-      setActionLoading(null);
+      if (session === sessionRef.current) setActionLoading(null);
     }
   };
 
@@ -482,7 +498,16 @@ export const MarketingStrategist = () => {
   };
 
   const handleReset = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionRef.current += 1;
+    // Same reasoning as the setItem above: a blocked storage API must not abort the
+    // reset half-done, leaving the old report on screen and no "Reset complete".
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (storageErr) {
+      console.warn("[AI Employee] Could not clear the local report cache:", storageErr);
+    }
+    setActionResult(null);
+    setActionLoading(null);
     setReport(null);
     setReportError(null);
     setBusiness({ companyName: "", industry: "", audience: "", budget: "", goal: "", currentChannels: "" });
@@ -1111,7 +1136,18 @@ const ActionView = ({
   // Reset local draft whenever a new/regenerated result comes in.
   useEffect(() => { setDraft(result.text); setEditing(false); }, [result.text, result.id]);
 
-  const handleCopy = () => { navigator.clipboard.writeText(draft); toast.success("Copied"); };
+  const handleCopy = async () => {
+    try {
+      // navigator.clipboard is undefined on an insecure origin, and writeText rejects
+      // when permission is denied or the document is not focused. The promise was
+      // never awaited, so every one of those cases still toasted "Copied".
+      await navigator.clipboard.writeText(draft);
+      toast.success("Copied");
+    } catch (e) {
+      console.error("[AI Employee] Clipboard write failed:", e);
+      toast.error("Couldn't copy — select the text and copy manually.");
+    }
+  };
   const handleSave = async () => {
     setSaving(true);
     try { await onSave(draft); } finally { setSaving(false); }

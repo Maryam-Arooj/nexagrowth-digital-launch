@@ -7,7 +7,10 @@ sqlalchemy>=2.0.36
 # psycopg 3 (not psycopg2) — psycopg2 has no prebuilt wheels for Python 3.13.
 psycopg[binary]>=3.2.3
 alembic>=1.14
-pydantic>=2.9
+# The [email] extra pulls in email-validator, which `pydantic.EmailStr` imports
+# lazily at first use. schemas.py uses EmailStr for lead and order addresses, so
+# without this a clean install fails at test collection, not at runtime.
+pydantic[email]>=2.9
 pydantic-settings>=2.6
 python-dotenv>=1.0
 
