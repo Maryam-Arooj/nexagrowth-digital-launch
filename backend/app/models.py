@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, Text, text
+from sqlalchemy import DateTime, ForeignKey, Numeric, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,9 +26,18 @@ from app.db import Base
 
 # `gen_random_uuid()` is built into PostgreSQL 13+. On 12 or older, enable pgcrypto.
 _UUID_PK = text("gen_random_uuid()")
-# Matches the original `timezone('utc'::text, now())` default, so timestamps keep
-# landing in UTC regardless of the server's local timezone setting.
-_UTC_NOW = text("timezone('utc'::text, now())")
+# `now()` is already an absolute instant (timestamptz), so PostgreSQL stores exactly
+# the moment the row was written, whatever the server's timezone is set to.
+#
+# The Supabase original said `timezone('utc'::text, now())`. That returns a *naive*
+# timestamp holding the UTC wall clock, and assigning a naive value to a timestamptz
+# column makes PostgreSQL read it as local time — re-applying the server's offset a
+# second time. Measured on PostgreSQL 16: with TimeZone='Asia/Karachi' (UTC+5) every
+# row landed 5 hours in the past; with 'America/New_York' (UTC-4), 4 hours in the
+# future. Drift is always minus the server's offset, and is zero only on a UTC
+# server — which is why the idiom survived Supabase (whose Postgres is UTC) and the
+# test container (Etc/UTC) without anyone noticing. See migration 0002.
+_NOW = text("now()")
 
 
 class Lead(Base):
@@ -43,7 +52,9 @@ class Lead(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_NOW, nullable=False
+    )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
     website: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -58,7 +69,9 @@ class MarketingReport(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_NOW, nullable=False
+    )
     company_name: Mapped[str] = mapped_column(Text, nullable=False)
     business_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
     report_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
@@ -72,7 +85,9 @@ class GeneratedContent(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_NOW, nullable=False
+    )
     company_name: Mapped[str] = mapped_column(Text, nullable=False)
     action_type: Mapped[str] = mapped_column(Text, nullable=False)
     label: Mapped[str] = mapped_column(Text, nullable=False)
@@ -91,7 +106,9 @@ class Order(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_NOW, nullable=False
+    )
     customer_name: Mapped[str] = mapped_column(Text, nullable=False)
     customer_email: Mapped[str] = mapped_column(Text, nullable=False)
     company: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -112,7 +129,9 @@ class OrderItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=_UUID_PK
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=_UTC_NOW, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=_NOW, nullable=False
+    )
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=True
     )

@@ -245,8 +245,17 @@ PostgreSQL 16 instance.
 | `order_items` | id, created_at, order_id → orders.id (cascade), plan_name, price |
 
 `id` is `uuid DEFAULT gen_random_uuid()` (built into PostgreSQL 13+; on 12 or older
-enable `pgcrypto`). `created_at` is `timestamptz DEFAULT timezone('utc'::text, now())`,
-so timestamps land in UTC regardless of the server's local timezone.
+enable `pgcrypto`). `created_at` is `timestamptz DEFAULT now()`.
+
+The Supabase original used `timezone('utc'::text, now())`, which looks like it pins
+the value to UTC but does the opposite: it returns a *naive* timestamp, and a
+`timestamptz` column reads a naive value as local time, applying the server's offset
+a second time. Measured on PostgreSQL 16, the stored instant came out wrong by minus
+the server's offset — 5 hours early under `Asia/Karachi`, 4 hours late under
+`America/New_York` — and exactly right only on a UTC server, which is why neither
+Supabase nor CI ever showed it. `now()` is already an absolute instant and needs no
+conversion. Migration `0002_fix_created_at_default` corrects it; existing rows are
+left untouched, since the offset in force when each was written is not recoverable.
 
 **Row Level Security is not ported.** Those seven policies existed only because the
 browser talked straight to PostgreSQL over PostgREST. FastAPI is now the access
