@@ -79,21 +79,76 @@ _NUMERIC_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _COERCE_KEYS = ("percent", "amount", "score", "monthlyPrice")
 
 
+def strip_trailing_commas(text: str) -> str:
+    """Remove trailing commas before } or ] — a very common LLM slip."""
+    return _TRAILING_COMMA_RE.sub(r"\1", text)
+
+
+def _balanced_objects(text: str) -> list[str]:
+    """Every top-level ``{...}`` block in ``text``, brace-matched.
+
+    String literals are tracked so a brace inside a JSON value cannot unbalance the
+    scan, and escapes are honoured so ``"\\"`` does not swallow the closing quote.
+    """
+    blocks: list[str] = []
+    depth = start = 0
+    in_string = escaped = False
+    for i, ch in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth:
+            depth -= 1
+            if depth == 0:
+                blocks.append(text[start : i + 1])
+    return blocks
+
+
 def extract_json(raw: str) -> str:
-    """Strip markdown fences and stray prose around the JSON body."""
+    """Strip markdown fences and stray prose around the JSON body.
+
+    This used to slice from the first ``{`` to the last ``}``. That breaks on the
+    output reasoning models actually produce, where a brace can appear in the prose
+    on either side of the payload:
+
+        I will return {channel, why, priority} objects. Here is the result: {...}
+        {...}  Note: the {percent} values sum to 100.
+
+    Both sliced in prose and failed to parse. Instead, scan out every brace-matched
+    top-level block and take the largest one that is genuinely parseable JSON — the
+    real payload is always far larger than a decoy brace pair in a sentence.
+    """
     text = raw.strip()
     fence = _FENCE_RE.search(text)
     if fence:
         text = fence.group(1).strip()
+
+    candidates = _balanced_objects(text)
+    for block in sorted(candidates, key=len, reverse=True):
+        for attempt in (block, strip_trailing_commas(block)):
+            try:
+                if isinstance(json.loads(attempt), dict):
+                    return block
+            except json.JSONDecodeError:
+                continue
+
+    # Nothing parsed — fall back to the original slice so the caller still raises a
+    # JSONDecodeError carrying the model's actual text (e.g. a truncated response).
     first, last = text.find("{"), text.rfind("}")
     if first >= 0 and last > first:
         text = text[first : last + 1]
     return text
-
-
-def strip_trailing_commas(text: str) -> str:
-    """Remove trailing commas before } or ] — a very common LLM slip."""
-    return _TRAILING_COMMA_RE.sub(r"\1", text)
 
 
 def parse_model_json(raw: str) -> Any:
