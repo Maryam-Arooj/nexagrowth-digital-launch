@@ -48,7 +48,7 @@ def test_health_never_leaks_the_gemini_key_or_the_dsn():
 
 def test_default_gemini_model_is_a_free_tier_model():
     assert get_settings().resolved_gemini_model == DEFAULT_GEMINI_MODEL
-    assert DEFAULT_GEMINI_MODEL == "gemini-2.5-flash"
+    assert DEFAULT_GEMINI_MODEL == "gemini-3.6-flash"
 
 
 def test_placeholder_dsn_is_rejected_loudly():

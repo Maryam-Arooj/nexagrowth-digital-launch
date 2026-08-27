@@ -260,7 +260,11 @@ const buildAiEmployeeInsight = (business: Business): AssistantInsight => {
 // The pipeline runs up to 4 sequential AI calls (vs. 1 previously), so it needs a
 // longer budget than a single-call request did. Must stay in sync with the stage ids
 // the marketing-report edge function streams (see STAGE_IDS in its index.ts).
-const REPORT_TIMEOUT_MS = 180_000;
+// Ceiling for the WHOLE six-stage run, so it has to clear the backend's worst case:
+// four AI stages x STAGE_TIMEOUT_SECONDS (75s per attempt) plus bounded retries and
+// backoff. At 180s this aborted mid-pipeline and the abort surfaced as a generic
+// failure, hiding whichever stage was actually still working.
+const REPORT_TIMEOUT_MS = 420_000;
 
 const PIPELINE_STAGE_DEFS: { id: string; label: string }[] = [
   { id: "business-analyst", label: "Business Analyst" },

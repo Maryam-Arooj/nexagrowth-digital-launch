@@ -18,8 +18,12 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 # The Gemini model used for every AI call (Phase 4).
 # Overridable via GEMINI_MODEL so a future model retirement is a config change,
 # not a code change: the project was previously pinned in code to
-# `gemini-2.0-flash`, which Google shut down on 1 June 2026.
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# `gemini-2.0-flash`, which Google shut down on 1 June 2026 — and then to
+# `gemini-2.5-flash`, which Google closed to new users in 2026 and which returns
+# 404 NOT_FOUND. A default that 404s is worse than no default: a fresh clone, or a
+# deploy where GEMINI_MODEL was not set, fails on the first AI stage with an error
+# that looks like a code bug.
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 
 
 class Settings(BaseSettings):
