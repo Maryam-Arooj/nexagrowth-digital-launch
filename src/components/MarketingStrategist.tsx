@@ -296,7 +296,12 @@ export const MarketingStrategist = () => {
   // Load saved
   useEffect(() => {
     const s = loadSaved();
-    if (s) { setBusiness(s.business); setReport(s.report); setStage("report"); }
+    // Run the restored report through the same normalizer fresh AI output gets.
+    // loadSaved() only guards JSON.parse, not shape, so a report saved by an older
+    // build — or by a run that died mid-pipeline — reached ReportView raw, and
+    // `report.swot[s.key].map(...)` threw on the missing field, which the app-level
+    // ErrorBoundary turned into "Something went wrong" the moment the panel opened.
+    if (s) { setBusiness(s.business); setReport(normalizeReport(s.report, s.business)); setStage("report"); }
   }, []);
 
   useEffect(() => {

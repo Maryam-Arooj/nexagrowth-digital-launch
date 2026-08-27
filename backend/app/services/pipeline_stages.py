@@ -16,12 +16,13 @@ import json
 import re
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, ValidationError as PydanticValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError as PydanticValidationError
 
 from app.services.ai_gateway import (
     STAGE_TIMEOUT_SECONDS,
     AiError,
     generate_text,
+    log_error,
 )
 from app.services.lead_scoring import (
     ChannelGuardrails,
@@ -141,6 +142,18 @@ def generate_stage_json(*, system: str, prompt: str, schema: type[T], label: str
     try:
         return schema.model_validate(parsed)
     except PydanticValidationError as exc:
+        # The user-facing message stays deliberately vague, but throwing the detail
+        # away made this class of failure undiagnosable from the logs. Record which
+        # fields actually failed and what the model sent for them.
+        log_error(
+            "stage_schema_mismatch",
+            exc,
+            stage=label,
+            errors=[
+                {"field": ".".join(str(p) for p in e["loc"]), "type": e["type"], "got": repr(e.get("input"))[:120]}
+                for e in exc.errors()[:8]
+            ],
+        )
         raise AiError(
             f"{label}: AI response did not match the expected format. Please retry."
         ) from exc
@@ -151,14 +164,33 @@ def generate_stage_json(*, system: str, prompt: str, schema: type[T], label: str
 # ==========================================================================
 
 
-class BusinessAnalysis(BaseModel):
+class StageModel(BaseModel):
+    """Base for every stage schema.
+
+    ``coerce_numbers_to_str`` is here because the stage prompts and the schemas
+    disagreed about type. The prompts tell the model "All numeric fields use plain
+    numbers (no % or $ symbols)", while several of the fields it says that about are
+    typed ``str`` — every key of ``Kpis`` (expectedLeads, conversionRate, roas, ctr,
+    trafficGrowth, monthlySales) and ``BudgetLine.expectedRoi``. Pydantic v2 does not
+    coerce number -> str by default, so an entirely reasonable response like
+    ``{"roas": 4.2, "expectedLeads": 150}`` was rejected and surfaced as
+    "AI response did not match the expected format".
+
+    Coercing keeps every value a ``str`` after validation, so the report structure the
+    frontend consumes is byte-for-byte the same contract as before.
+    """
+
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+
+class BusinessAnalysis(StageModel):
     model: str
     audience: str
     strengths: str
     currentPosition: str
 
 
-class BusinessAnalystResult(BaseModel):
+class BusinessAnalystResult(StageModel):
     businessAnalysis: BusinessAnalysis
     classification: dict[str, Any]
 
@@ -212,26 +244,26 @@ def run_lead_scorer_stage(business: dict[str, Any]) -> dict[str, Any]:
 # ==========================================================================
 
 
-class Swot(BaseModel):
+class Swot(StageModel):
     strengths: list[str]
     weaknesses: list[str]
     opportunities: list[str]
     threats: list[str]
 
 
-class Competitor(BaseModel):
+class Competitor(StageModel):
     name: str
     note: str
 
 
-class CompetitorAnalysis(BaseModel):
+class CompetitorAnalysis(StageModel):
     topCompetitors: list[Competitor]
     competitiveAdvantages: list[str]
     marketGaps: list[str]
     differentiationStrategy: str
 
 
-class CompetitorStageResult(BaseModel):
+class CompetitorStageResult(StageModel):
     swot: Swot
     competitorAnalysis: CompetitorAnalysis
 
@@ -274,38 +306,38 @@ def run_competitor_analyst_stage(
 # ==========================================================================
 
 
-class StrategyChannel(BaseModel):
+class StrategyChannel(StageModel):
     channel: str
     why: str
     priority: str
 
 
-class BudgetLine(BaseModel):
+class BudgetLine(StageModel):
     channel: str
     percent: float
     amount: float
     expectedRoi: str
 
 
-class ActionPlan(BaseModel):
+class ActionPlan(StageModel):
     week1: list[str]
     week2: list[str]
     week3: list[str]
     week4: list[str]
 
 
-class MonthPlan(BaseModel):
+class MonthPlan(StageModel):
     theme: str
     keyActions: list[str]
 
 
-class NinetyDayStrategy(BaseModel):
+class NinetyDayStrategy(StageModel):
     month1: MonthPlan
     month2: MonthPlan
     month3: MonthPlan
 
 
-class Kpis(BaseModel):
+class Kpis(StageModel):
     expectedLeads: str
     conversionRate: str
     roas: str
@@ -314,13 +346,13 @@ class Kpis(BaseModel):
     monthlySales: str
 
 
-class RecommendedPlan(BaseModel):
+class RecommendedPlan(StageModel):
     name: str
     monthlyPrice: float
     reasoning: str
 
 
-class StrategyStageResult(BaseModel):
+class StrategyStageResult(StageModel):
     marketingStrategy: list[StrategyChannel]
     budgetAllocation: list[BudgetLine]
     actionPlan: ActionPlan
@@ -382,7 +414,7 @@ def run_marketing_strategist_stage(
 # ==========================================================================
 
 
-class Seo(BaseModel):
+class Seo(StageModel):
     primaryKeywords: list[str]
     secondaryKeywords: list[str]
     longTailKeywords: list[str]
@@ -392,7 +424,7 @@ class Seo(BaseModel):
     internalLinking: list[str]
 
 
-class ContentIdeas(BaseModel):
+class ContentIdeas(StageModel):
     instagramPosts: list[str]
     reels: list[str]
     stories: list[str]
@@ -401,7 +433,7 @@ class ContentIdeas(BaseModel):
     emailCampaigns: list[str]
 
 
-class ContentStageResult(BaseModel):
+class ContentStageResult(StageModel):
     seo: Seo
     contentIdeas: ContentIdeas
 
@@ -443,12 +475,12 @@ def run_content_generator_stage(
 # ==========================================================================
 
 
-class Risk(BaseModel):
+class Risk(StageModel):
     risk: str
     mitigation: str
 
 
-class CampaignStageResult(BaseModel):
+class CampaignStageResult(StageModel):
     executiveSummary: str
     riskAnalysis: list[Risk]
     finalRecommendations: list[str]
