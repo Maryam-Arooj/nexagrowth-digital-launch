@@ -182,11 +182,16 @@ T = TypeVar("T", bound=BaseModel)
 
 def generate_stage_json(*, system: str, prompt: str, schema: type[T], label: str) -> T:
     """Run one AI-backed stage: call the model, repair/parse, validate."""
+    # `response_schema` puts Gemini into structured-output mode, so the body arrives
+    # as bare JSON matching this schema. The repair-and-parse path below still runs:
+    # it is the fallback for a provider that ignores the constraint, and it is what
+    # the test suite's stub backends exercise.
     text = generate_text(
         system=system + _JSON_ONLY,
         prompt=prompt,
         label=label,
         timeout=STAGE_TIMEOUT_SECONDS,
+        response_schema=schema,
     )
     try:
         parsed = parse_model_json(text)

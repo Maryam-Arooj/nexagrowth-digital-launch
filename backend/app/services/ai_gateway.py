@@ -98,7 +98,15 @@ def _friendly_ai_error(exc: BaseException, label: str) -> Exception:
 
 
 class TextBackend(Protocol):
-    def __call__(self, *, model: str, system: str, prompt: str, timeout: float) -> str: ...
+    def __call__(
+        self,
+        *,
+        model: str,
+        system: str,
+        prompt: str,
+        timeout: float,
+        response_schema: Any = None,
+    ) -> str: ...
 
 
 class StreamBackend(Protocol):
@@ -107,20 +115,67 @@ class StreamBackend(Protocol):
     ) -> Iterator[str]: ...
 
 
-def _gemini_text(*, model: str, system: str, prompt: str, timeout: float) -> str:
+def _gemini_text(
+    *, model: str, system: str, prompt: str, timeout: float, response_schema: Any = None
+) -> str:
+    """One Gemini call.
+
+    When ``response_schema`` is given, the model is put into structured-output mode
+    (``response_mime_type="application/json"`` plus the Pydantic schema). Gemini then
+    constrains decoding to that schema, so the body cannot come back wrapped in
+    markdown fences, prefixed with a reasoning preamble, or trailed by commentary —
+    the three shapes the text-repair path in pipeline_stages.py exists to survive.
+    That path is kept as a fallback; this just stops it being load-bearing.
+    """
     from google import genai
     from google.genai import types
+
+    config_kwargs: dict[str, Any] = {
+        "system_instruction": system,
+        "http_options": types.HttpOptions(timeout=int(timeout * 1000)),
+    }
+    if response_schema is not None:
+        config_kwargs["response_mime_type"] = "application/json"
+        config_kwargs["response_schema"] = response_schema
 
     client = genai.Client(api_key=get_settings().gemini_api_key)
     response = client.models.generate_content(
         model=model,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            http_options=types.HttpOptions(timeout=int(timeout * 1000)),
-        ),
+        config=types.GenerateContentConfig(**config_kwargs),
     )
-    return response.text or ""
+
+    text = response.text or ""
+    if not text.strip():
+        # An empty body is almost always a stop reason, not a real answer. Say which
+        # one — "AI returned invalid JSON" sent us hunting the parser for a call that
+        # never produced a payload at all.
+        raise AiError(f"model returned an empty response ({_stop_reason(response)})")
+    if _truncated(response):
+        raise AiError(
+            "model response was cut off before the JSON was complete "
+            f"({_stop_reason(response)}). The stage output is too long for the "
+            "current output-token budget."
+        )
+    return text
+
+
+def _stop_reason(response: Any) -> str:
+    """Best-effort finish_reason, for error messages only."""
+    try:
+        reason = response.candidates[0].finish_reason
+    except (AttributeError, IndexError, TypeError):
+        return "finish_reason unavailable"
+    return f"finish_reason={getattr(reason, 'name', reason)}"
+
+
+def _truncated(response: Any) -> bool:
+    """True when generation stopped because it ran out of output tokens."""
+    try:
+        reason = response.candidates[0].finish_reason
+    except (AttributeError, IndexError, TypeError):
+        return False
+    return str(getattr(reason, "name", reason)).upper() == "MAX_TOKENS"
 
 
 def _gemini_stream(*, model: str, system: str, prompt: str, timeout: float) -> Iterator[str]:
@@ -164,11 +219,29 @@ def set_backends(
 # --------------------------------------------------------------------------
 
 
-def generate_text(*, system: str, prompt: str, label: str, timeout: float = STAGE_TIMEOUT_SECONDS) -> str:
-    """One non-streaming model call, with provider errors normalised."""
+def generate_text(
+    *,
+    system: str,
+    prompt: str,
+    label: str,
+    timeout: float = STAGE_TIMEOUT_SECONDS,
+    response_schema: Any = None,
+) -> str:
+    """One non-streaming model call, with provider errors normalised.
+
+    ``response_schema`` (a Pydantic model) switches the provider into structured
+    output. It is optional so the free-text callers — the chat and action endpoints —
+    are unaffected.
+    """
     model = get_model_id()
     try:
-        return _TEXT_BACKEND(model=model, system=system, prompt=prompt, timeout=timeout)
+        return _TEXT_BACKEND(
+            model=model,
+            system=system,
+            prompt=prompt,
+            timeout=timeout,
+            response_schema=response_schema,
+        )
     except (ConfigError, ValidationError):
         raise
     except BaseException as exc:  # noqa: BLE001 - re-raised as a typed AI error

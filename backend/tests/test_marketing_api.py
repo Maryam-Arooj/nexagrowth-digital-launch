@@ -73,7 +73,7 @@ CAMPAIGN_JSON = {
 }
 
 
-def _stub_text(*, model, system, prompt, timeout):
+def _stub_text(*, model, system, prompt, timeout, response_schema=None):
     """Route each stage to its canned payload by matching the system prompt."""
     if "competitive landscape" in system:
         return json.dumps(COMPETITOR_JSON)
@@ -177,7 +177,7 @@ def test_missing_industry_is_a_400():
 
 
 def test_a_failing_stage_emits_failed_then_error_and_keeps_earlier_stages():
-    def failing(*, model, system, prompt, timeout):
+    def failing(*, model, system, prompt, timeout, response_schema=None):
         raise RuntimeError("model exploded")
 
     ai_gateway.set_backends(text=failing)
@@ -190,7 +190,7 @@ def test_a_failing_stage_emits_failed_then_error_and_keeps_earlier_stages():
 
 
 def test_rate_limit_keeps_the_429_prefix_the_frontend_matches_on():
-    def limited(*, model, system, prompt, timeout):
+    def limited(*, model, system, prompt, timeout, response_schema=None):
         raise RuntimeError("429 Too Many Requests RESOURCE_EXHAUSTED")
 
     ai_gateway.set_backends(text=limited)
@@ -226,7 +226,7 @@ def test_unknown_action_is_rejected():
 
 
 def test_action_rate_limit_maps_to_429():
-    def limited(*, model, system, prompt, timeout):
+    def limited(*, model, system, prompt, timeout, response_schema=None):
         raise RuntimeError("429 rate limit")
 
     ai_gateway.set_backends(text=limited)
