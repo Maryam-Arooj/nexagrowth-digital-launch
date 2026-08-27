@@ -1,0 +1,31 @@
+# Render blueprint for the NexaGrowth FastAPI backend.
+#
+# Free plan, no credit card. Two things to know about it:
+#   - the service spins down after 15 minutes idle and takes ~1 minute to wake,
+#     so the first strategy generation after a quiet period will be slow;
+#   - Render's own free Postgres expires 30 days after creation, so DATABASE_URL
+#     points at Neon instead (free, no card, no expiry). See DEPLOYMENT.md.
+#
+# Every secret is `sync: false` — Render prompts for it in the dashboard and it is
+# never written to this file or to git.
+services:
+  - type: web
+    name: nexagrowth-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Runs before each deploy goes live, so the schema is migrated exactly once.
+    preDeployCommand: alembic upgrade head
+    # Render supplies $PORT; binding 0.0.0.0 is required for it to be reachable.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      - key: DATABASE_URL      # Neon pooled connection string
+        sync: false
+      - key: GEMINI_API_KEY    # server-side only, never reaches the browser
+        sync: false
+      - key: CORS_ORIGINS      # the Vercel URL, exact scheme+host, no trailing slash
+        sync: false
